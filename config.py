@@ -2,7 +2,10 @@
 
 Device IPs, API endpoints, greenhouse physical parameters, and tuning values.
 Secrets (API keys, passwords) live in .env, not here.
+Environment-specific IPs (e.g. devices that move between VLANs) also live in .env.
 """
+
+import os
 
 # ---------------------------------------------------------------------------
 # Device addresses (DHCP reservations — update with actual IPs)
@@ -11,6 +14,12 @@ SHELLY_HT_IP = "192.168.2.100"          # Shelly H&T G3 on IoT VLAN
 SHELLY_HT_DEVICE_ID = "e4b323311d58"   # MAC-based ID (cloud API uses this format)
 SHELLY_RELAY_IP = "192.168.1.XXX"       # Shelly Plus 1 PM on IoT VLAN
 WEATHER_STATION_IP = "192.168.2.101"   # AmbientWeather WS-2902 on IoT VLAN
+MOTION_GATEWAY_IP = os.getenv("MOTION_GATEWAY_IP", "192.168.1.103")  # Dooya/Motion Blinds Pro Hub DD7006
+
+# MAC addresses of individual shades (discovered via test_shades.py — fill in after first run)
+# East shades face ~NNE, block morning sun. West shades face ~SSW, block afternoon sun.
+SHADES_EAST_MACS = ["9451dc9567200001", "9451dc9567200002", "9451dc9567200003", "9451dc9567200004"]
+SHADES_WEST_MACS = ["9451dc9567200005", "9451dc9567200006", "9451dc9567200007", "9451dc9567200008"]
 
 # Shelly MQTT topics (Gen3 H&T publishes to these)
 SHELLY_HT_MQTT_TOPIC_PREFIX = "shellyhtg3-e4b323311d58"

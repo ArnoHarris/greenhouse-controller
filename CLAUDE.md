@@ -30,17 +30,16 @@ This is NOT full MPC optimization. It's rule-based control informed by model pre
 
 ### Actuators
 
-**Exterior Shades:** WEFFORT motorized shades via WEFFORT Smart Hub Pro
+**Exterior Shades:** WEFFORT motorized shades via Dooya Pro Hub DD7006
 - 8 individual roof shades: 4 east (shades 1-4), 4 west (shades 5-8)
 - Ridge runs N-S, so east shades block morning sun, west shades block afternoon sun
-- Each shade commanded individually, but hub allows grouping (east group, west group)
+- Commanded as east group and west group (individual MACs in config.py)
 - No gable-end shades
-- Binary: fully open or fully closed (no partial positions)
+- Supports positional control (0-100%) as well as open/close — controller uses binary open/closed for simplicity
 - Hub has 433.92 MHz RF to motors, Ethernet + Wi-Fi connectivity
-- Control protocol TBD pending testing when hub arrives (currently in transit)
-- Hub supports Control4/Crestron/RTI/ELAN, suggesting local IP control may be available
-- Fallback options in order: Tuya local protocol via tinytuya (if hub pairs with Smart Life app), IFTTT as last resort
-- Testing plan: check for local API docs, try Smart Life pairing, navigate to hub IP for web interface
+- Control: `motionblinds` Python library (`pip install motionblinds`), local UDP protocol
+- Key: 16-character string from Motion Blinds app (Settings → About → tap 5 times), stored in `.env` as `MOTION_GATEWAY_KEY`
+- Hub IP stored in `.env` as `MOTION_GATEWAY_IP` (environment-specific; on IoT VLAN in production)
 
 **Exhaust Fans:** 2x 14" exhaust fans (~2000 cfm total) on south gable, controlled via Shelly Plus 1 PM relay
 - Intake: 4x 2'x2' louver vents on north gable, pulling air through adjacent flower shed
