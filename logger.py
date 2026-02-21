@@ -3,7 +3,7 @@
 import json
 import sqlite3
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 import config
 
@@ -35,6 +35,7 @@ def _init_tables(conn):
             shades_east TEXT,
             shades_west TEXT,
             fan_on INTEGER,
+            circ_fans_on INTEGER,
             hvac_mode TEXT,
             hvac_setpoint REAL
         );
@@ -91,8 +92,39 @@ def _init_tables(conn):
             error_f REAL NOT NULL,
             horizon_minutes INTEGER NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS power_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            power_a_kw REAL,
+            current_a_a REAL,
+            voltage_a_v REAL,
+            energy_a_kwh REAL,
+            power_b_kw REAL,
+            current_b_a REAL,
+            voltage_b_v REAL,
+            energy_b_kwh REAL,
+            power_total_kw REAL,
+            energy_total_kwh REAL
+        );
     """)
     conn.commit()
+
+    # Migrations: add columns introduced after initial schema creation
+    _migrate(conn)
+
+
+def _migrate(conn):
+    """Apply incremental schema changes to existing databases."""
+    migrations = [
+        "ALTER TABLE sensor_log ADD COLUMN circ_fans_on INTEGER",
+    ]
+    for sql in migrations:
+        try:
+            conn.execute(sql)
+            conn.commit()
+        except Exception:
+            pass  # column already exists
 
 
 def log_sensors(state):
@@ -102,8 +134,8 @@ def log_sensors(state):
         """INSERT INTO sensor_log
            (timestamp, indoor_temp_f, indoor_humidity, outdoor_temp_f,
             outdoor_humidity, solar_irradiance_wm2, wind_speed_mph,
-            shades_east, shades_west, fan_on, hvac_mode, hvac_setpoint)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            shades_east, shades_west, fan_on, circ_fans_on, hvac_mode, hvac_setpoint)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             state.timestamp.isoformat(),
             state.indoor_temp,
@@ -115,6 +147,7 @@ def log_sensors(state):
             state.shades_east,
             state.shades_west,
             int(state.fan_on) if state.fan_on is not None else None,
+            int(state.circ_fans_on) if state.circ_fans_on is not None else None,
             state.hvac_mode,
             state.hvac_setpoint,
         ),
@@ -128,7 +161,7 @@ def log_forecast(raw_forecast, corrected_forecast, bias_deltas=None):
     conn.execute(
         "INSERT INTO forecast_log (timestamp, raw_forecast, corrected_forecast, bias_deltas) VALUES (?, ?, ?, ?)",
         (
-            datetime.now().isoformat(),
+            datetime.now(timezone.utc).isoformat(),
             json.dumps(raw_forecast),
             json.dumps(corrected_forecast),
             json.dumps(bias_deltas) if bias_deltas else None,
@@ -143,7 +176,7 @@ def log_model_prediction(trajectory, model_params):
     conn.execute(
         "INSERT INTO model_log (timestamp, predicted_trajectory, model_params) VALUES (?, ?, ?)",
         (
-            datetime.now().isoformat(),
+            datetime.now(timezone.utc).isoformat(),
             json.dumps(trajectory),
             json.dumps(model_params),
         ),
@@ -156,7 +189,7 @@ def update_heartbeat():
     conn = get_connection()
     conn.execute(
         "INSERT OR REPLACE INTO heartbeat (id, timestamp) VALUES (1, ?)",
-        (datetime.now().isoformat(),),
+        (datetime.now(timezone.utc).isoformat(),),
     )
     conn.commit()
 
@@ -166,7 +199,7 @@ def log_startup(initial_state=None):
     conn = get_connection()
     conn.execute(
         "INSERT INTO startups (timestamp, initial_state) VALUES (?, ?)",
-        (datetime.now().isoformat(), json.dumps(initial_state) if initial_state else None),
+        (datetime.now(timezone.utc).isoformat(), json.dumps(initial_state) if initial_state else None),
     )
     conn.commit()
 
@@ -179,7 +212,39 @@ def log_model_accuracy(predicted_temp_f, actual_temp_f, horizon_minutes):
         """INSERT INTO model_accuracy
            (timestamp, predicted_temp_f, actual_temp_f, error_f, horizon_minutes)
            VALUES (?, ?, ?, ?, ?)""",
-        (datetime.now().isoformat(), predicted_temp_f, actual_temp_f, error, horizon_minutes),
+        (datetime.now(timezone.utc).isoformat(), predicted_temp_f, actual_temp_f, error, horizon_minutes),
+    )
+    conn.commit()
+
+
+def log_power(reading, energy_a_kwh=None, energy_b_kwh=None):
+    """Log power meter readings to power_log table.
+
+    Args:
+        reading: dict from Shelly3EM.read()
+        energy_a_kwh: per-interval energy consumed on phase A (kWh delta), or None
+        energy_b_kwh: per-interval energy consumed on phase B (kWh delta), or None
+    """
+    conn = get_connection()
+    a = reading["phase_a"]
+    b = reading["phase_b"]
+    energy_total = (
+        (energy_a_kwh or 0) + (energy_b_kwh or 0)
+        if energy_a_kwh is not None and energy_b_kwh is not None
+        else None
+    )
+    conn.execute(
+        """INSERT INTO power_log
+           (timestamp, power_a_kw, current_a_a, voltage_a_v, energy_a_kwh,
+            power_b_kw, current_b_a, voltage_b_v, energy_b_kwh,
+            power_total_kw, energy_total_kwh)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            datetime.now(timezone.utc).isoformat(),
+            a["power_kw"], a["current_a"], a["voltage_v"], energy_a_kwh,
+            b["power_kw"], b["current_a"], b["voltage_v"], energy_b_kwh,
+            reading["total_power_kw"], energy_total,
+        ),
     )
     conn.commit()
 
@@ -190,7 +255,7 @@ def get_model_rmse(hours_back=24):
     Returns dict with rmse, mean_bias, and count, or None if no data.
     """
     conn = get_connection()
-    cutoff = datetime.now().isoformat()
+    cutoff = datetime.now(timezone.utc).isoformat()
     # SQLite datetime comparison works on ISO strings
     row = conn.execute(
         """SELECT

@@ -15,6 +15,7 @@ class GreenhouseState:
     shades_east: str = "open"        # "open" or "closed" (4 shades, commanded together)
     shades_west: str = "open"        # "open" or "closed" (4 shades, commanded together)
     fan_on: bool = False
+    circ_fans_on: bool = False
     hvac_mode: str = "off"            # "off", "cool", "heat", "auto"
     hvac_setpoint: float = None       # degF
     timestamp: datetime = field(default_factory=datetime.now)

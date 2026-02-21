@@ -48,6 +48,12 @@ This is NOT full MPC optimization. It's rule-based control informed by model pre
 - Includes power monitoring (watts, energy, voltage, current)
 - Cleanest integration point in the system
 
+**Circulating Fans:** 2x 18" circulating fans inside the greenhouse on a single circuit
+- Controlled via Kasa HS210 3-way smart switch
+- Control: `python-kasa` library (async API wrapped with `asyncio.run()` for sync codebase)
+- IP stored in `config.py` as `KASA_CIRC_FANS_IP`
+- State tracked as `circ_fans_on` in GreenhouseState
+
 **HVAC Minisplit:** Mitsubishi MSZ-WR18NA 1.5-ton
 - Remove existing Kumo Cloud Wi-Fi adapter from CN105 port
 - Replace with ESP32-WROOM-32D pre-assembled board from Tindie ("CN105 for Mitsubishi air conditioner" by "Home automation devices for Home Assistant")

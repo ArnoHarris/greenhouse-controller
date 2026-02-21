@@ -5,16 +5,16 @@ Secrets (API keys, passwords) live in .env, not here.
 Environment-specific IPs (e.g. devices that move between VLANs) also live in .env.
 """
 
-import os
-
 # ---------------------------------------------------------------------------
 # Device addresses (DHCP reservations — update with actual IPs)
 # ---------------------------------------------------------------------------
 SHELLY_HT_IP = "192.168.2.100"          # Shelly H&T G3 on IoT VLAN
 SHELLY_HT_DEVICE_ID = "e4b323311d58"   # MAC-based ID (cloud API uses this format)
 SHELLY_RELAY_IP = "192.168.1.XXX"       # Shelly Plus 1 PM on IoT VLAN
+KASA_CIRC_FANS_IP = "192.168.2.102"    # Kasa HS210 3-way switch (2x circulating fans)
 WEATHER_STATION_IP = "192.168.2.101"   # AmbientWeather WS-2902 on IoT VLAN
-MOTION_GATEWAY_IP = os.getenv("MOTION_GATEWAY_IP", "192.168.1.103")  # Dooya/Motion Blinds Pro Hub DD7006
+MOTION_GATEWAY_IP = "192.168.1.103"    # Dooya/Motion Blinds Pro Hub DD7006 (main LAN; IoT VLAN move deferred)
+SHELLY_3EM_IP = "192.168.2.105"        # Shelly 3EM power meter
 
 # MAC addresses of individual shades (discovered via test_shades.py — fill in after first run)
 # East shades face ~NNE, block morning sun. West shades face ~SSW, block afternoon sun.
@@ -128,7 +128,9 @@ ALERT_THRESHOLDS = {
     "open_meteo": 5.0,
     "shelly_ht": 2.0,
     "ambient_weather": 5.0,
+    "shelly_3em": 1.0,      # 1 hour (monitoring device, not critical)
     "shelly_relay": 0.0,    # immediate
+    "kasa_circ_fans": 0.0,  # immediate
     "minisplit": 0.0,       # immediate
     "shades": 0.0,          # immediate
 }

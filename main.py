@@ -7,7 +7,7 @@ everything to SQLite. No actuator control yet.
 import os
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 
@@ -23,6 +23,8 @@ from resilience import retry_with_fallback, get_health
 from state import GreenhouseState
 from devices.shelly_ht import ShellyHT
 from devices.weather_station import WeatherStation
+from devices.kasa_switch import KasaSwitch
+from devices.shelly_3em import Shelly3EM
 
 logging.basicConfig(
     level=logging.INFO,
@@ -74,9 +76,9 @@ def setup_mqtt(shelly_ht):
     return client
 
 
-def read_all_sensors(shelly_ht, weather_station):
+def read_all_sensors(shelly_ht, weather_station, kasa_circ_fans):
     """Read all sensors with retry/fallback. Returns a GreenhouseState."""
-    state = GreenhouseState(timestamp=datetime.now())
+    state = GreenhouseState(timestamp=datetime.now(timezone.utc))
 
     # Indoor: Shelly H&T (reads from MQTT cache, falls back to cloud API)
     indoor, indoor_fallback = retry_with_fallback(
@@ -99,6 +101,15 @@ def read_all_sensors(shelly_ht, weather_station):
         state.wind_speed = outdoor["wind_speed_mph"]
     if outdoor_fallback:
         log.warning("Using fallback for weather station")
+
+    # Circulating fans: Kasa HS210
+    circ, circ_fallback = retry_with_fallback(
+        kasa_circ_fans.read, {"on": None}, "kasa_circ_fans"
+    )
+    if circ and circ["on"] is not None:
+        state.circ_fans_on = circ["on"]
+    if circ_fallback:
+        log.warning("Using fallback for circulating fans")
 
     return state, outdoor
 
@@ -149,6 +160,8 @@ def main():
     # Initialize devices
     shelly_ht = ShellyHT()
     weather_station = WeatherStation()
+    kasa_circ_fans = KasaSwitch(config.KASA_CIRC_FANS_IP)
+    shelly_3em = Shelly3EM(config.SHELLY_3EM_IP)
 
     # Start MQTT subscriber for Shelly H&T
     mqtt_client = setup_mqtt(shelly_ht)
@@ -160,13 +173,14 @@ def main():
     # Previous cycle's prediction for error tracking
     # Key: horizon_minutes → predicted_temp_f
     prev_prediction = None  # 5-minute-ahead prediction from last cycle
+    prev_power_totals = None  # {"a": kWh, "b": kWh} for energy delta computation
 
     while True:
         cycle_start = time.time()
 
         try:
             # 1. Read all sensors
-            state, station_reading = read_all_sensors(shelly_ht, weather_station)
+            state, station_reading = read_all_sensors(shelly_ht, weather_station, kasa_circ_fans)
 
             # 1b. Compare previous prediction against actual (model accuracy tracking)
             if prev_prediction is not None and state.indoor_temp is not None:
@@ -216,7 +230,31 @@ def main():
                 }
                 logger.log_model_prediction(downsampled, trajectory["params"])
 
-            # 6. Periodic accuracy summary (every ~1 hour = 12 cycles)
+            # 6. Power meter
+            power, power_fallback = retry_with_fallback(
+                shelly_3em.read, None, "shelly_3em"
+            )
+            if power:
+                energy_a = energy_b = None
+                if prev_power_totals is not None:
+                    delta_a = power["phase_a"]["total_kwh"] - prev_power_totals["a"]
+                    delta_b = power["phase_b"]["total_kwh"] - prev_power_totals["b"]
+                    # Guard against meter reset or invalid reading
+                    energy_a = delta_a if delta_a >= 0 else None
+                    energy_b = delta_b if delta_b >= 0 else None
+                prev_power_totals = {
+                    "a": power["phase_a"]["total_kwh"],
+                    "b": power["phase_b"]["total_kwh"],
+                }
+                logger.log_power(power, energy_a, energy_b)
+                log.info("Power: A=%.2fkW B=%.2fkW total=%.2fkW",
+                         power["phase_a"]["power_kw"] or 0,
+                         power["phase_b"]["power_kw"] or 0,
+                         power["total_power_kw"])
+            if power_fallback:
+                log.warning("Using fallback for power meter")
+
+            # 8. Periodic accuracy summary (every ~1 hour = 12 cycles)
             accuracy_24h = logger.get_model_rmse(hours_back=24)
             if accuracy_24h and accuracy_24h["count"] >= 12:
                 log.info("Model accuracy (24h): RMSE=%.1fF, bias=%+.1fF, n=%d",
