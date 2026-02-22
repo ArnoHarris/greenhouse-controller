@@ -2,3 +2,4 @@ requests
 python-dotenv
 paho-mqtt
 motionblinds
+flask

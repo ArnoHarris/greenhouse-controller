@@ -1,0 +1,71 @@
+<!-- Controls panel — shared between dashboard and energy pages -->
+<div class="panel controls-panel">
+  <div class="panel-title">controls</div>
+
+  <div class="controls-grid">
+
+    <!-- Row 1: Shades -->
+    <button class="ctrl-btn shade-btn" id="btn-shades-east"
+            data-actuator="shades_east"
+            data-cmd-on='{"position":"closed"}'
+            data-cmd-off='{"position":"open"}'
+            data-duration="120">
+      <span class="btn-dot" id="dot-shades-east"></span>
+      <span class="btn-label">East Shades</span>
+    </button>
+
+    <button class="ctrl-btn shade-btn" id="btn-shades-west"
+            data-actuator="shades_west"
+            data-cmd-on='{"position":"closed"}'
+            data-cmd-off='{"position":"open"}'
+            data-duration="120">
+      <span class="btn-dot" id="dot-shades-west"></span>
+      <span class="btn-label">West Shades</span>
+    </button>
+
+    <!-- Row 2: Fans -->
+    <button class="ctrl-btn fan-btn" id="btn-fan"
+            data-actuator="fan"
+            data-cmd-on='{"on":true}'
+            data-cmd-off='{"on":false}'
+            data-duration="5">
+      <span class="btn-dot" id="dot-fan"></span>
+      <span class="btn-label">Exhaust Fans</span>
+      <span class="btn-sub" id="fan-timer">5:00 min</span>
+    </button>
+
+    <button class="ctrl-btn fan-btn" id="btn-circ-fans"
+            data-actuator="circ_fans"
+            data-cmd-on='{"on":true}'
+            data-cmd-off='{"on":false}'
+            data-duration="120">
+      <span class="btn-dot" id="dot-circ-fans"></span>
+      <span class="btn-label">Circulating Fans</span>
+    </button>
+
+    <!-- Row 3: HVAC -->
+    <div class="hvac-row">
+      <div class="hvac-setpoint heat" id="hvac-heat-block">
+        <button class="sp-arrow up" onclick="adjustSetpoint('heat', +1)">▲</button>
+        <span class="sp-value" id="heat-setpoint">60°</span>
+        <button class="sp-arrow down" onclick="adjustSetpoint('heat', -1)">▼</button>
+      </div>
+
+      <button class="hvac-center ctrl-btn" id="btn-hvac"
+              data-actuator="hvac"
+              data-cmd-on='{"mode":"auto"}'
+              data-cmd-off='{"mode":"off"}'
+              data-duration="120">
+        <span class="btn-dot" id="dot-hvac"></span>
+        <span class="btn-label">HVAC Settings (F)</span>
+      </button>
+
+      <div class="hvac-setpoint cool" id="hvac-cool-block">
+        <button class="sp-arrow up" onclick="adjustSetpoint('cool', +1)">▲</button>
+        <span class="sp-value" id="cool-setpoint">80°</span>
+        <button class="sp-arrow down" onclick="adjustSetpoint('cool', -1)">▼</button>
+      </div>
+    </div>
+
+  </div><!-- /controls-grid -->
+</div><!-- /controls-panel -->

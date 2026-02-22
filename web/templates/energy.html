@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="two-col-layout">
+
+  <!-- LEFT: Energy -->
+  <div class="panel energy-panel">
+    <div class="panel-title">energy</div>
+
+    <!-- Gauges -->
+    <div class="gauges-row">
+      <div class="gauge-wrap">
+        <svg class="gauge-svg" viewBox="0 0 120 70">
+          <path d="M10 65 A50 50 0 0 1 110 65" fill="none" stroke="#444" stroke-width="10" stroke-linecap="round"/>
+          <path id="gauge-power-arc" d="M10 65 A50 50 0 0 1 110 65" fill="none" stroke="url(#gaugeGrad)" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
+          <defs>
+            <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#3fdc3f"/>
+              <stop offset="50%" stop-color="#f0c040"/>
+              <stop offset="100%" stop-color="#e03030"/>
+            </linearGradient>
+          </defs>
+          <line id="gauge-power-needle" x1="60" y1="65" x2="60" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <div class="gauge-value" id="gauge-power">—</div>
+        <div class="gauge-label">power</div>
+      </div>
+
+      <div class="gauge-wrap">
+        <svg class="gauge-svg" viewBox="0 0 120 70">
+          <path d="M10 65 A50 50 0 0 1 110 65" fill="none" stroke="#444" stroke-width="10" stroke-linecap="round"/>
+          <path id="gauge-current-arc" d="M10 65 A50 50 0 0 1 110 65" fill="none" stroke="url(#gaugeGrad)" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
+          <line id="gauge-current-needle" x1="60" y1="65" x2="60" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <div class="gauge-value" id="gauge-current">—</div>
+        <div class="gauge-label">current</div>
+      </div>
+
+      <div class="gauge-wrap">
+        <svg class="gauge-svg" viewBox="0 0 120 70">
+          <path d="M10 65 A50 50 0 0 1 110 65" fill="none" stroke="#444" stroke-width="10" stroke-linecap="round"/>
+          <path id="gauge-voltage-arc" d="M10 65 A50 50 0 0 1 110 65" fill="none" stroke="url(#gaugeGrad)" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
+          <line id="gauge-voltage-needle" x1="60" y1="65" x2="60" y2="20" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <div class="gauge-value" id="gauge-voltage">—</div>
+        <div class="gauge-label">voltage</div>
+      </div>
+    </div>
+
+    <!-- Power chart controls -->
+    <div class="chart-controls">
+      <div class="range-select-wrap">
+        <span class="range-icon">🕐</span>
+        <select id="power-range" class="range-select" onchange="loadPowerChart()">
+          <option value="1h">Last 1 hour</option>
+          <option value="24h" selected>Last 24 hours</option>
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+        </select>
+        <span class="range-arrow">▼</span>
+      </div>
+      <div class="date-nav">
+        <button class="date-nav-btn" onclick="shiftPowerRange(-1)">‹</button>
+        <span class="date-nav-label" id="power-date-label">—</span>
+        <button class="date-nav-btn" onclick="shiftPowerRange(+1)">›</button>
+      </div>
+    </div>
+
+    <div class="chart-wrap">
+      <canvas id="power-chart"></canvas>
+    </div>
+
+  </div><!-- /energy-panel -->
+
+  <!-- RIGHT: Controls (shared) -->
+  {% include "partials/controls.html" %}
+
+</div>
+{% endblock %}
+
+{% block page_script %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+  initEnergyPage();
+  startDashboardPolling();
+</script>
+{% endblock %}

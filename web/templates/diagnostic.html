@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="diag-layout">
+
+  <!-- Temperature overlay: actual vs. predicted -->
+  <div class="panel diag-panel">
+    <div class="panel-title">temperature overlay</div>
+
+    <div class="chart-controls">
+      <div class="range-select-wrap">
+        <span class="range-icon">🕐</span>
+        <select id="diag-range" class="range-select" onchange="loadDiagChart()">
+          <option value="24h" selected>Last 24 hours</option>
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+        </select>
+        <span class="range-arrow">▼</span>
+      </div>
+
+      <div class="diag-stats-inline">
+        <span class="diag-stat">RMSE: <strong id="diag-rmse">—</strong></span>
+        <span class="diag-stat">Bias: <strong id="diag-bias">—</strong></span>
+        <span class="diag-stat">n: <strong id="diag-n">—</strong></span>
+      </div>
+    </div>
+
+    <div class="chart-wrap chart-wrap-full">
+      <canvas id="diag-chart"></canvas>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block page_script %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+  initDiagnosticPage();
+</script>
+{% endblock %}

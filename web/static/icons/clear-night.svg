@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Crescent moon -->
+  <path d="M38 14 A18 18 0 1 0 38 50 A12 12 0 1 1 38 14 Z"
+        fill="#f0c040" stroke="none"/>
+</svg>

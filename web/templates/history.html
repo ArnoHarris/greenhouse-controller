@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="two-col-layout">
+
+  <!-- LEFT: Temperature -->
+  <div class="panel chart-panel">
+    <div class="panel-title">temperature</div>
+
+    <div class="chart-controls">
+      <div class="range-select-wrap">
+        <span class="range-icon">🕐</span>
+        <select id="temp-range" class="range-select" onchange="loadTempChart()">
+          <option value="1h">Last 1 hour</option>
+          <option value="24h" selected>Last 24 hours</option>
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+          <option value="1y">Last year</option>
+        </select>
+        <span class="range-arrow">▼</span>
+      </div>
+      <div class="date-nav">
+        <button class="date-nav-btn" id="temp-prev" onclick="shiftTempRange(-1)">‹</button>
+        <span class="date-nav-label" id="temp-date-label">—</span>
+        <button class="date-nav-btn" id="temp-next" onclick="shiftTempRange(+1)">›</button>
+      </div>
+    </div>
+
+    <div class="chart-wrap">
+      <canvas id="temp-chart"></canvas>
+    </div>
+
+    <div class="chart-stats">
+      <div class="stat-row"><span class="stat-icon">%</span><strong>Average</strong><span class="stat-val" id="temp-avg">—</span></div>
+      <div class="stat-row"><span class="stat-icon">↑</span><strong>Max</strong><span class="stat-val" id="temp-max">—</span></div>
+      <div class="stat-row"><span class="stat-icon">↓</span><strong>Min</strong><span class="stat-val" id="temp-min">—</span></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Humidity -->
+  <div class="panel chart-panel">
+    <div class="panel-title">humidity</div>
+
+    <div class="chart-controls">
+      <div class="range-select-wrap">
+        <span class="range-icon">🕐</span>
+        <select id="hum-range" class="range-select" onchange="loadHumChart()">
+          <option value="1h">Last 1 hour</option>
+          <option value="24h" selected>Last 24 hours</option>
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+          <option value="1y">Last year</option>
+        </select>
+        <span class="range-arrow">▼</span>
+      </div>
+      <div class="date-nav">
+        <button class="date-nav-btn" id="hum-prev" onclick="shiftHumRange(-1)">‹</button>
+        <span class="date-nav-label" id="hum-date-label">—</span>
+        <button class="date-nav-btn" id="hum-next" onclick="shiftHumRange(+1)">›</button>
+      </div>
+    </div>
+
+    <div class="chart-wrap">
+      <canvas id="hum-chart"></canvas>
+    </div>
+
+    <div class="chart-stats">
+      <div class="stat-row"><span class="stat-icon">%</span><strong>Average</strong><span class="stat-val" id="hum-avg">—</span></div>
+      <div class="stat-row"><span class="stat-icon">↑</span><strong>Max</strong><span class="stat-val" id="hum-max">—</span></div>
+      <div class="stat-row"><span class="stat-icon">↓</span><strong>Min</strong><span class="stat-val" id="hum-min">—</span></div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block page_script %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+  initHistoryPage();
+</script>
+{% endblock %}

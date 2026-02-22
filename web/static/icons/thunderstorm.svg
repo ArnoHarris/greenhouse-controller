@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Cloud -->
+  <path d="M10 34 Q10 26 18 26 Q20 18 30 18 Q40 18 42 26 Q50 26 50 34 Z"
+        fill="#888888" stroke="none"/>
+  <!-- Lightning bolt -->
+  <polygon points="34,38 28,50 33,50 28,62 38,46 33,46 38,38"
+           fill="#f0c040" stroke="none"/>
+  <!-- Rain -->
+  <g stroke="#4488ee" stroke-width="2" stroke-linecap="round" opacity="0.7">
+    <line x1="16" y1="42" x2="13" y2="52"/>
+    <line x1="46" y1="42" x2="43" y2="52"/>
+  </g>
+</svg>

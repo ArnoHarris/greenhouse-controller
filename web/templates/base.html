@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>greenhouse-controls</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="nav-bar">
+  <div class="nav-left">
+    <div class="hamburger-icon">
+      <span></span><span></span><span></span>
+    </div>
+    <nav class="tabs">
+      <a href="/" class="tab {% if page == 'greenhouse' %}active{% endif %}">greenhouse</a>
+      <a href="/history" class="tab {% if page == 'history' %}active{% endif %}">history</a>
+      <a href="/energy" class="tab {% if page == 'energy' %}active{% endif %}">energy</a>
+      <a href="/diagnostic" class="tab {% if page == 'diagnostic' %}active{% endif %}">diagnostic</a>
+    </nav>
+  </div>
+  <div class="nav-right">
+    <span id="nav-datetime" class="nav-datetime"></span>
+    <span id="controller-badge" class="controller-badge offline" title="Controller status">●</span>
+  </div>
+</header>
+
+<main class="page-content">
+  {% block content %}{% endblock %}
+</main>
+
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+{% block page_script %}{% endblock %}
+
+</body>
+</html>

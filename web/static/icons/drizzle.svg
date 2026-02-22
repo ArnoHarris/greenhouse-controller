@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Cloud -->
+  <path d="M12 38 Q12 30 20 30 Q22 22 32 22 Q42 22 44 30 Q52 30 52 38 Z"
+        fill="#cccccc" stroke="none"/>
+  <!-- Light rain drops -->
+  <g fill="#88bbee" stroke="none">
+    <ellipse cx="22" cy="48" rx="2" ry="4"/>
+    <ellipse cx="32" cy="52" rx="2" ry="4"/>
+    <ellipse cx="42" cy="48" rx="2" ry="4"/>
+  </g>
+</svg>

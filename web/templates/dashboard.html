@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="two-col-layout">
+
+  <!-- LEFT: Status -->
+  <div class="panel status-panel">
+    <div class="panel-title">status</div>
+
+    <!-- Weather row -->
+    <div class="weather-row">
+      <div class="weather-cell">
+        <img id="icon-current" class="weather-icon" src="/static/icons/clear-day.svg" alt="current weather">
+        <div class="weather-vals">
+          <span class="weather-temp" id="outdoor-temp">--°F</span>
+          <span class="weather-humidity"><span id="outdoor-humidity">--</span>%<span class="drop-icon">💧</span></span>
+        </div>
+      </div>
+
+      <div class="forecast-arrow">
+        <span class="arrow-label">2 hr</span>
+        <svg viewBox="0 0 48 24" class="arrow-svg">
+          <path d="M0 12 L36 12 M28 4 L40 12 L28 20" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+
+      <div class="weather-cell">
+        <img id="icon-forecast" class="weather-icon" src="/static/icons/partly-cloudy-day.svg" alt="forecast weather">
+        <div class="weather-vals">
+          <span class="weather-temp" id="forecast-temp">--°F</span>
+          <span class="weather-humidity"><span id="forecast-humidity">--</span>%<span class="drop-icon">💧</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Greenhouse image -->
+    <div class="greenhouse-wrap">
+      <img id="greenhouse-img"
+           class="greenhouse-img"
+           src="/static/images/greenhouse-open.png"
+           alt="greenhouse"
+           data-east="open"
+           data-west="open">
+
+      <!-- Indoor temp bubble -->
+      <div class="indoor-bubble">
+        <div class="indoor-temp" id="indoor-temp">--°F</div>
+        <div class="indoor-humidity"><span id="indoor-humidity">--</span>%<span class="drop-icon">💧</span></div>
+      </div>
+    </div>
+
+  </div><!-- /status-panel -->
+
+  <!-- RIGHT: Controls -->
+  {% include "partials/controls.html" %}
+
+</div><!-- /two-col-layout -->
+{% endblock %}
+
+{% block page_script %}
+<script>
+  startDashboardPolling();
+</script>
+{% endblock %}

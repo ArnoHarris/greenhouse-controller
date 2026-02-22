@@ -1,0 +1,484 @@
+/* ============================================================
+   Greenhouse Controls — Dark Theme
+   Target: Fire HD 10 (1280×800), phones (9:16), desktop
+   ============================================================ */
+
+:root {
+  --bg:           #2b2b2b;
+  --panel:        #3d3d3d;
+  --panel-border: #4a4a4a;
+  --header:       #1e1e1e;
+  --text:         #ffffff;
+  --text-muted:   #9a9a9a;
+
+  --btn-active:   #1b7a87;   /* teal — shades/fans active */
+  --btn-inactive: #565656;   /* gray — inactive */
+  --heat:         #c05820;   /* orange — heat setpoint */
+  --cool:         #1e5c8a;   /* blue — cool setpoint */
+  --dot-on:       #3dd56d;   /* green */
+  --dot-off:      #888888;   /* gray */
+  --accent:       #a8c020;   /* yellow-green logo */
+
+  --radius:       10px;
+  --gap:          14px;
+  --header-h:     50px;
+}
+
+/* ---- Reset ---- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  overflow: hidden;          /* kiosk: no scroll */
+}
+
+/* ============================================================
+   Nav bar
+   ============================================================ */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-h);
+  background: var(--header);
+  padding: 0 16px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+
+.nav-left { display: flex; align-items: center; gap: 18px; }
+
+/* Hamburger */
+.hamburger-icon {
+  display: flex; flex-direction: column; gap: 5px; cursor: pointer; padding: 4px;
+}
+.hamburger-icon span {
+  display: block; width: 22px; height: 2px;
+  background: var(--accent); border-radius: 2px;
+}
+
+/* Tabs */
+.tabs { display: flex; gap: 0; }
+.tab {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 15px;
+  padding: 0 20px;
+  height: var(--header-h);
+  display: flex; align-items: center;
+  border-bottom: 3px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+
+/* Nav right */
+.nav-right { display: flex; align-items: center; gap: 12px; }
+.nav-datetime { color: var(--text-muted); font-size: 14px; }
+.controller-badge {
+  font-size: 18px;
+  line-height: 1;
+  cursor: default;
+}
+.controller-badge.online  { color: var(--dot-on); }
+.controller-badge.offline { color: var(--dot-off); }
+
+/* ============================================================
+   Page layout
+   ============================================================ */
+.page-content {
+  height: calc(100vh - var(--header-h));
+  padding: var(--gap);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Two-column layout for greenhouse, history, energy pages */
+.two-col-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+  height: 100%;
+  min-height: 0;
+}
+
+/* Diagnostic: single full-width panel */
+.diag-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  height: 100%;
+  min-height: 0;
+}
+
+/* ============================================================
+   Panel base
+   ============================================================ */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel-title {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-transform: lowercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Status panel (dashboard)
+   ============================================================ */
+.status-panel { gap: 10px; }
+
+/* Weather row */
+.weather-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 0 8px;
+}
+.weather-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.weather-icon { width: 56px; height: 56px; }
+.weather-vals {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.weather-temp { font-size: 28px; font-weight: 600; }
+.weather-humidity { font-size: 15px; color: var(--text-muted); }
+.drop-icon { margin-left: 2px; font-size: 13px; }
+
+/* Arrow */
+.forecast-arrow {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.arrow-label { font-size: 12px; color: var(--text-muted); }
+.arrow-svg { width: 48px; height: 24px; }
+
+/* Greenhouse image area */
+.greenhouse-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.greenhouse-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+/* Indoor bubble */
+.indoor-bubble {
+  position: absolute;
+  bottom: 18%;
+  right: 12%;
+  background: rgba(43, 43, 43, 0.85);
+  border: 2px solid rgba(255,255,255,0.25);
+  border-radius: 50%;
+  width: 110px; height: 110px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 4px;
+  backdrop-filter: blur(4px);
+}
+.indoor-temp  { font-size: 24px; font-weight: 700; }
+.indoor-humidity { font-size: 14px; color: var(--text-muted); }
+
+/* ============================================================
+   Controls panel (shared)
+   ============================================================ */
+.controls-panel { justify-content: center; }
+
+.controls-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  justify-content: center;
+}
+
+/* Generic control button */
+.ctrl-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 14px 10px;
+  transition: background 0.2s, transform 0.1s;
+  color: var(--text);
+  font-size: 15px;
+  min-height: 70px;
+  -webkit-tap-highlight-color: transparent;
+}
+.ctrl-btn:active { transform: scale(0.97); }
+
+/* Shade and fan buttons sit in a 2-column row */
+.ctrl-btn.shade-btn,
+.ctrl-btn.fan-btn {
+  background: var(--btn-inactive);
+}
+.ctrl-btn.shade-btn.active,
+.ctrl-btn.fan-btn.active {
+  background: var(--btn-active);
+}
+
+/* The 2×2 grid for shades and fans */
+.controls-grid > .ctrl-btn {
+  /* shade-btn and fan-btn are wrapped in a row — handled below */
+}
+
+/* Rows inside controls-grid */
+.controls-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Two-column rows for shades and fans */
+.controls-grid > .ctrl-btn:not(.hvac-center) {
+  /* Direct ctrl-btn children = pairs, handled via CSS hack below */
+}
+
+/* Override: shades and fans rendered as a 2×2 grid */
+.controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 14px;
+}
+.hvac-row {
+  grid-column: 1 / -1;  /* span full width */
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+/* Status dot */
+.btn-dot {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--dot-off);
+  transition: background 0.2s;
+}
+.ctrl-btn.active .btn-dot { background: var(--dot-on); }
+
+.btn-label { font-size: 15px; font-weight: 500; }
+.btn-sub   { font-size: 12px; color: rgba(255,255,255,0.65); }
+
+/* HVAC row */
+.hvac-setpoint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 8px 14px;
+  min-width: 80px;
+  gap: 2px;
+}
+.hvac-setpoint.heat { background: var(--heat); }
+.hvac-setpoint.cool { background: var(--cool); }
+
+.sp-arrow {
+  background: none; border: none; color: rgba(255,255,255,0.8);
+  font-size: 14px; cursor: pointer; padding: 2px 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+.sp-arrow:hover { color: white; }
+.sp-value { font-size: 22px; font-weight: 700; color: white; }
+
+.hvac-center {
+  flex: 1;
+  background: var(--btn-inactive);
+  border-radius: 8px;
+  min-height: 70px;
+}
+.hvac-center.active { background: var(--btn-inactive); }  /* always gray bg */
+.hvac-center .btn-dot { background: var(--dot-off); }
+.hvac-center.hvac-running .btn-dot { background: var(--dot-on); }
+
+/* ============================================================
+   History charts
+   ============================================================ */
+.chart-panel { gap: 8px; }
+
+.chart-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.range-select-wrap {
+  display: flex;
+  align-items: center;
+  background: #2a2a2a;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  gap: 6px;
+  flex: 1;
+}
+.range-icon { font-size: 14px; }
+.range-select {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  flex: 1;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+}
+.range-select option { background: #2a2a2a; }
+.range-arrow { color: var(--text-muted); font-size: 10px; }
+
+.date-nav {
+  display: flex;
+  align-items: center;
+  background: #2a2a2a;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.date-nav-btn {
+  background: none; border: none;
+  color: var(--text-muted); font-size: 18px;
+  padding: 6px 10px; cursor: pointer;
+}
+.date-nav-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.date-nav-label {
+  font-size: 13px; color: var(--text-muted);
+  padding: 0 10px; white-space: nowrap;
+}
+
+.chart-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+.chart-wrap canvas { width: 100% !important; height: 100% !important; }
+
+.chart-stats {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid var(--panel-border);
+  margin-top: 4px;
+}
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 13px;
+}
+.stat-icon { color: var(--text-muted); width: 16px; }
+.stat-row strong { flex: 1; color: var(--text-muted); font-weight: 500; }
+.stat-val { color: #4fc3f7; font-weight: 600; }
+
+/* ============================================================
+   Energy panel
+   ============================================================ */
+.energy-panel { gap: 10px; }
+
+.gauges-row {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  flex-shrink: 0;
+  padding: 0 8px;
+}
+.gauge-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  flex: 1;
+}
+.gauge-svg { width: 120px; height: 70px; }
+.gauge-value { font-size: 20px; font-weight: 700; }
+.gauge-label  { font-size: 12px; color: var(--text-muted); }
+
+/* ============================================================
+   Diagnostic panel
+   ============================================================ */
+.diag-panel { flex: 1; min-height: 0; }
+
+.diag-stats-inline {
+  display: flex; gap: 20px;
+}
+.diag-stat {
+  font-size: 13px; color: var(--text-muted);
+}
+.diag-stat strong { color: var(--text); }
+
+.chart-wrap-full {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ============================================================
+   Responsive — phone (portrait 9:16)
+   ============================================================ */
+@media (max-aspect-ratio: 1/1) {
+  body { overflow-y: auto; }
+  .page-content { height: auto; overflow: visible; }
+
+  .two-col-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    height: auto;
+  }
+
+  .panel { min-height: 400px; }
+
+  .greenhouse-wrap { min-height: 260px; }
+
+  .indoor-bubble {
+    width: 90px; height: 90px;
+    bottom: 10%; right: 8%;
+  }
+  .indoor-temp { font-size: 20px; }
+}
+
+/* ============================================================
+   Responsive — desktop (wider than 1280px)
+   ============================================================ */
+@media (min-width: 1400px) {
+  :root { font-size: 16px; }
+  .weather-temp { font-size: 32px; }
+  .indoor-temp  { font-size: 28px; }
+}
