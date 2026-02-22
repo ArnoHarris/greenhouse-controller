@@ -4,6 +4,7 @@ import json
 import os
 import sqlite3
 import sys
+import traceback
 from datetime import datetime, timezone, timedelta
 
 from flask import Flask, render_template, request, jsonify
@@ -200,6 +201,7 @@ def api_state():
         return jsonify(state)
 
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"error": str(e), "controller_online": False}), 500
 
 
