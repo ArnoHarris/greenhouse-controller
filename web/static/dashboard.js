@@ -515,8 +515,8 @@ async function loadTempChart() {
     type: "line",
     data: {
       datasets: [
-        { label: "Indoor °F",  data: indoor,  borderColor: "#ef5350", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
-        { label: "Outdoor °F", data: outdoor, borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
+        { label: "Indoor °F",  data: indoor,  borderColor: "#ef5350", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+        { label: "Outdoor °F", data: outdoor, borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
       ],
     },
     options: chartOptions(range, "°F"),
@@ -552,8 +552,8 @@ async function loadHumChart() {
     type: "line",
     data: {
       datasets: [
-        { label: "Indoor %",  data: indoor,  borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
-        { label: "Outdoor %", data: outdoor, borderColor: "#80cbc4", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
+        { label: "Indoor %",  data: indoor,  borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+        { label: "Outdoor %", data: outdoor, borderColor: "#80cbc4", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
       ],
     },
     options: chartOptions(range, "%"),
@@ -601,9 +601,9 @@ async function loadPowerChart() {
     type: "line",
     data: {
       datasets: [
-        { label: "Phase A kW", data: phaseA, borderColor: "#ce93d8", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
-        { label: "Phase B kW", data: phaseB, borderColor: "#f0a030", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
-        { label: "Total kW",   data: total,  borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
+        { label: "Phase A kW", data: phaseA, borderColor: "#ce93d8", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+        { label: "Phase B kW", data: phaseB, borderColor: "#f0a030", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+        { label: "Total kW",   data: total,  borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
       ],
     },
     options: chartOptions(range, "kW"),
@@ -669,8 +669,8 @@ async function loadDiagTempChart(range) {
       type: "line",
       data: {
         datasets: [
-          { label: "Actual °F",    data: accuracy.map(r => ({ x: new Date(r.timestamp), y: r.actual_temp_f    })), borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
-          { label: "Predicted °F", data: accuracy.map(r => ({ x: new Date(r.timestamp), y: r.predicted_temp_f })), borderColor: "#ef5350", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false, borderDash: [6, 3] },
+          { label: "Actual °F",    data: accuracy.map(r => ({ x: new Date(r.timestamp), y: r.actual_temp_f    })), borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+          { label: "Predicted °F", data: accuracy.map(r => ({ x: new Date(r.timestamp), y: r.predicted_temp_f })), borderColor: "#ef5350", borderWidth: 2, pointRadius: 0, tension: 0, fill: false, borderDash: [6, 3] },
         ],
       },
       options: chartOptions(range, "°F"),
@@ -692,8 +692,8 @@ async function loadSolarChart(range) {
       type: "line",
       data: {
         datasets: [
-          { label: "Actual W/m²",   data: actual,   borderColor: "#f0c040", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
-          { label: "Forecast W/m²", data: forecast, borderColor: "#888",    borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false, borderDash: [6, 3] },
+          { label: "Actual W/m²",   data: actual,   borderColor: "#f0c040", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+          { label: "Forecast W/m²", data: forecast, borderColor: "#888",    borderWidth: 2, pointRadius: 0, tension: 0, fill: false, borderDash: [6, 3] },
         ],
       },
       options: chartOptions(range, "W/m²"),

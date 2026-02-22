@@ -229,7 +229,7 @@ def api_history():
                        fan_on, circ_fans_on, hvac_mode
                 FROM sensor_log
                 WHERE timestamp > datetime('now', '{interval}')
-                ORDER BY timestamp ASC"""
+                ORDER BY rowid ASC"""
         ).fetchall()
         conn.close()
         return jsonify([dict(r) for r in rows])
