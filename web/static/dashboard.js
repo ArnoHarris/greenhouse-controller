@@ -307,11 +307,15 @@ function openTape(which, anchorEl) {
   container.style.transition = "";
   container.style.transform  = `translateY(${_tapeCurrentOffset}px)`;
 
-  // Position overlay near anchor
-  const tape = document.getElementById("setpoint-tape");
-  const rect = anchorEl.getBoundingClientRect();
-  tape.style.left = Math.min(rect.left, window.innerWidth - 116) + "px";
-  tape.style.top  = (rect.bottom + 8) + "px";
+  // Position overlay centered over HVAC center button
+  const tape    = document.getElementById("setpoint-tape");
+  const hvacBtn = document.getElementById("btn-hvac");
+  const btnRect = (hvacBtn || anchorEl).getBoundingClientRect();
+  const tLeft   = Math.max(0, Math.min(btnRect.left + btnRect.width / 2 - 50, window.innerWidth - 116));
+  const tTop    = Math.max(0, btnRect.top + btnRect.height / 2 - 130);
+  tape.className   = "tape-overlay tape-" + which;
+  tape.style.left  = tLeft + "px";
+  tape.style.top   = tTop  + "px";
   tape.style.display = "block";
   document.getElementById("tape-backdrop").style.display = "block";
 
@@ -678,8 +682,8 @@ async function loadSolarChart(range) {
   try {
     const res    = await fetch(`/api/solar_forecast?range=${range}`);
     const data   = await res.json();
-    const actual   = (data.actual   || []).map(r => ({ x: new Date(r.timestamp), y: r.value }));
-    const forecast = (data.forecast || []).map(r => ({ x: new Date(r.timestamp), y: r.value }));
+    const actual   = (data.actual   || []).map(r => ({ x: new Date(r.timestamp), y: r.solar_irradiance_wm2 }));
+    const forecast = (data.forecast || []).map(r => ({ x: new Date(r.timestamp), y: r.solar_wm2 }));
 
     const ctx = document.getElementById("solar-chart");
     if (!ctx) return;
@@ -801,7 +805,14 @@ function chartOptions(range, yLabel) {
     interaction: { mode: "index", intersect: false },
     plugins: {
       legend: {
-        labels: { color: "#9a9a9a", font: { size: 11 }, usePointStyle: false, boxWidth: 18, boxHeight: 10 },
+        labels: {
+          color: "#9a9a9a", font: { size: 11 }, usePointStyle: false, boxWidth: 18, boxHeight: 10,
+          generateLabels(chart) {
+            const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+            labels.forEach(l => { l.fillStyle = l.strokeStyle; l.lineWidth = 0; });
+            return labels;
+          },
+        },
       },
       tooltip: {
         backgroundColor: "#1e1e1e", borderColor: "#4a4a4a", borderWidth: 1,
