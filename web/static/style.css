@@ -199,7 +199,8 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: repeat(5, 1fr);
-  gap: 10px;
+  row-gap: 20px;
+  column-gap: 10px;
   flex: 1;
   min-height: 0;
 }

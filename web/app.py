@@ -26,6 +26,22 @@ def get_db():
     return conn
 
 
+def ensure_overrides(conn):
+    """Create overrides table if needed (web app owns this table)."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS overrides (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            actuator TEXT NOT NULL,
+            command TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            source TEXT NOT NULL,
+            cancelled_at TEXT
+        )
+    """)
+    conn.commit()
+
+
 def ensure_settings(conn):
     """Create settings table and insert defaults if needed."""
     conn.execute("""
@@ -94,29 +110,44 @@ def api_state():
     try:
         conn = get_db()
 
-        sensor = conn.execute(
-            "SELECT * FROM sensor_log ORDER BY timestamp DESC LIMIT 1"
-        ).fetchone()
+        try:
+            sensor = conn.execute(
+                "SELECT * FROM sensor_log ORDER BY rowid DESC LIMIT 1"
+            ).fetchone()
+        except Exception:
+            sensor = None
 
-        power = conn.execute(
-            "SELECT * FROM power_log ORDER BY timestamp DESC LIMIT 1"
-        ).fetchone()
+        try:
+            power = conn.execute(
+                "SELECT * FROM power_log ORDER BY rowid DESC LIMIT 1"
+            ).fetchone()
+        except Exception:
+            power = None
 
-        heartbeat = conn.execute(
-            "SELECT timestamp FROM heartbeat WHERE id = 1"
-        ).fetchone()
+        try:
+            heartbeat = conn.execute(
+                "SELECT timestamp FROM heartbeat WHERE id = 1"
+            ).fetchone()
+        except Exception:
+            heartbeat = None
 
-        overrides = conn.execute(
-            """SELECT actuator, command, created_at, expires_at
-               FROM overrides
-               WHERE expires_at > datetime('now') AND cancelled_at IS NULL
-               ORDER BY created_at DESC"""
-        ).fetchall()
+        try:
+            ensure_overrides(conn)
+            overrides = conn.execute(
+                """SELECT actuator, command, created_at, expires_at
+                   FROM overrides
+                   WHERE expires_at > datetime('now') AND cancelled_at IS NULL
+                   ORDER BY created_at DESC"""
+            ).fetchall()
+        except Exception:
+            overrides = []
 
-        # Latest forecast for weather code + 2hr prediction
-        forecast_row = conn.execute(
-            "SELECT corrected_forecast FROM forecast_log ORDER BY timestamp DESC LIMIT 1"
-        ).fetchone()
+        try:
+            forecast_row = conn.execute(
+                "SELECT corrected_forecast FROM forecast_log ORDER BY rowid DESC LIMIT 1"
+            ).fetchone()
+        except Exception:
+            forecast_row = None
 
         settings = load_settings(conn)
         conn.close()
@@ -447,6 +478,7 @@ def api_set_override():
 
     try:
         conn = get_db()
+        ensure_overrides(conn)
         conn.execute(
             "UPDATE overrides SET cancelled_at = ? WHERE actuator = ? AND cancelled_at IS NULL",
             (now.isoformat(), actuator),
@@ -467,6 +499,7 @@ def api_cancel_override(actuator):
     now = datetime.now(timezone.utc).isoformat()
     try:
         conn = get_db()
+        ensure_overrides(conn)
         conn.execute(
             "UPDATE overrides SET cancelled_at = ? WHERE actuator = ? AND cancelled_at IS NULL",
             (now, actuator),
