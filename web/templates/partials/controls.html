@@ -43,12 +43,12 @@
       <span class="btn-label">Circulating Fans</span>
     </button>
 
-    <!-- Row 3: HVAC -->
+    <!-- Row 3: HVAC — tap setpoint blocks to open tape picker -->
     <div class="hvac-row">
-      <div class="hvac-setpoint heat" id="hvac-heat-block">
-        <button class="sp-arrow up" onclick="adjustSetpoint('heat', +1)">▲</button>
+      <div class="hvac-setpoint heat" id="hvac-heat-block"
+           onclick="openTape('heat', this)">
         <span class="sp-value" id="heat-setpoint">60°</span>
-        <button class="sp-arrow down" onclick="adjustSetpoint('heat', -1)">▼</button>
+        <span class="sp-hint">tap to set</span>
       </div>
 
       <button class="hvac-center ctrl-btn" id="btn-hvac"
@@ -60,12 +60,22 @@
         <span class="btn-label">HVAC Settings (F)</span>
       </button>
 
-      <div class="hvac-setpoint cool" id="hvac-cool-block">
-        <button class="sp-arrow up" onclick="adjustSetpoint('cool', +1)">▲</button>
+      <div class="hvac-setpoint cool" id="hvac-cool-block"
+           onclick="openTape('cool', this)">
         <span class="sp-value" id="cool-setpoint">80°</span>
-        <button class="sp-arrow down" onclick="adjustSetpoint('cool', -1)">▼</button>
+        <span class="sp-hint">tap to set</span>
       </div>
     </div>
 
   </div><!-- /controls-grid -->
 </div><!-- /controls-panel -->
+
+<!-- Tape picker overlay (one shared instance) -->
+<div id="setpoint-tape" class="tape-overlay" style="display:none" aria-hidden="true">
+  <div class="tape-track">
+    <div class="tape-items" id="tape-items"></div>
+  </div>
+  <div class="tape-center-indicator"></div>
+  <button class="tape-close" onclick="closeTape(false)">✕</button>
+</div>
+<div id="tape-backdrop" class="tape-backdrop" style="display:none" onclick="closeTape(true)"></div>

@@ -11,20 +11,19 @@
   --text:         #ffffff;
   --text-muted:   #9a9a9a;
 
-  --btn-active:   #1b7a87;   /* teal — shades/fans active */
-  --btn-inactive: #565656;   /* gray — inactive */
-  --heat:         #c05820;   /* orange — heat setpoint */
-  --cool:         #1e5c8a;   /* blue — cool setpoint */
-  --dot-on:       #3dd56d;   /* green */
-  --dot-off:      #888888;   /* gray */
-  --accent:       #a8c020;   /* yellow-green logo */
+  --btn-active:   #1b7a87;
+  --btn-inactive: #565656;
+  --heat:         #c05820;
+  --cool:         #1e5c8a;
+  --dot-on:       #3dd56d;
+  --dot-off:      #888888;
+  --accent:       #a8c020;
 
   --radius:       10px;
   --gap:          14px;
   --header-h:     50px;
 }
 
-/* ---- Reset ---- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
 body {
@@ -32,7 +31,7 @@ body {
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 15px;
-  overflow: hidden;          /* kiosk: no scroll */
+  overflow: hidden;
 }
 
 /* ============================================================
@@ -40,38 +39,29 @@ body {
    ============================================================ */
 .nav-bar {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
   height: var(--header-h);
   background: var(--header);
-  padding: 0 16px;
+  padding: 0 20px 0 0;
   flex-shrink: 0;
   position: relative;
   z-index: 10;
 }
 
-.nav-left { display: flex; align-items: center; gap: 18px; }
+.nav-left { display: flex; align-items: stretch; }
+.tabs     { display: flex; align-items: stretch; }
 
-/* Hamburger */
-.hamburger-icon {
-  display: flex; flex-direction: column; gap: 5px; cursor: pointer; padding: 4px;
-}
-.hamburger-icon span {
-  display: block; width: 22px; height: 2px;
-  background: var(--accent); border-radius: 2px;
-}
-
-/* Tabs */
-.tabs { display: flex; gap: 0; }
 .tab {
   color: var(--text-muted);
   text-decoration: none;
-  font-size: 15px;
-  padding: 0 20px;
-  height: var(--header-h);
-  display: flex; align-items: center;
+  font-size: 22px;
+  padding: 0 22px;
+  display: flex;
+  align-items: center;
   border-bottom: 3px solid transparent;
   transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
 }
 .tab:hover { color: var(--text); }
 .tab.active {
@@ -79,14 +69,9 @@ body {
   border-bottom-color: var(--text);
 }
 
-/* Nav right */
-.nav-right { display: flex; align-items: center; gap: 12px; }
-.nav-datetime { color: var(--text-muted); font-size: 14px; }
-.controller-badge {
-  font-size: 18px;
-  line-height: 1;
-  cursor: default;
-}
+.nav-right  { display: flex; align-items: center; gap: 12px; }
+.nav-datetime { color: var(--text-muted); font-size: 15px; }
+.controller-badge { font-size: 18px; cursor: default; line-height: 1; }
 .controller-badge.online  { color: var(--dot-on); }
 .controller-badge.offline { color: var(--dot-off); }
 
@@ -100,7 +85,6 @@ body {
   flex-direction: column;
 }
 
-/* Two-column layout for greenhouse, history, energy pages */
 .two-col-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -109,13 +93,20 @@ body {
   min-height: 0;
 }
 
-/* Diagnostic: single full-width panel */
 .diag-layout {
   display: flex;
   flex-direction: column;
   gap: var(--gap);
   height: 100%;
   min-height: 0;
+  overflow-y: auto;
+}
+
+.diag-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
 }
 
 /* ============================================================
@@ -133,94 +124,78 @@ body {
 }
 
 .panel-title {
-  font-size: 13px;
-  color: var(--text-muted);
+  font-size: 20px;
+  color: var(--text);
   text-transform: lowercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   margin-bottom: 10px;
   flex-shrink: 0;
 }
 
 /* ============================================================
-   Status panel (dashboard)
+   Status panel
    ============================================================ */
 .status-panel { gap: 10px; }
 
-/* Weather row */
 .weather-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  padding: 0 8px;
+  padding: 0;
 }
-.weather-cell {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+.weather-cell { display: flex; align-items: center; gap: 10px; }
 .weather-icon { width: 56px; height: 56px; }
-.weather-vals {
-  display: flex; flex-direction: column; gap: 4px;
-}
+.weather-vals { display: flex; flex-direction: column; gap: 4px; }
 .weather-temp { font-size: 28px; font-weight: 600; }
-.weather-humidity { font-size: 15px; color: var(--text-muted); }
-.drop-icon { margin-left: 2px; font-size: 13px; }
+.weather-humidity { font-size: 22px; color: var(--text-muted); }
+.drop-icon { margin-left: 2px; font-size: 16px; }
 
-/* Arrow */
-.forecast-arrow {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-}
-.arrow-label { font-size: 12px; color: var(--text-muted); }
+.forecast-arrow { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.arrow-label { font-size: 13px; color: var(--text-muted); }
 .arrow-svg { width: 48px; height: 24px; }
 
-/* Greenhouse image area */
 .greenhouse-wrap {
   position: relative;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  flex: 1; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #2d4a1e;
+  border-radius: 6px;
 }
 .greenhouse-img {
-  max-width: 100%;
-  max-height: 100%;
+  max-width: 100%; max-height: 100%;
   object-fit: contain;
   border-radius: 6px;
 }
 
-/* Indoor bubble */
 .indoor-bubble {
   position: absolute;
-  bottom: 18%;
-  right: 12%;
-  background: rgba(43, 43, 43, 0.85);
-  border: 2px solid rgba(255,255,255,0.25);
+  bottom: 14%; right: 8%;
+  background: rgba(43,43,43,0.88);
+  border: 2px solid rgba(255,255,255,0.22);
   border-radius: 50%;
-  width: 110px; height: 110px;
+  width: 120px; height: 120px;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   gap: 4px;
   backdrop-filter: blur(4px);
 }
-.indoor-temp  { font-size: 24px; font-weight: 700; }
-.indoor-humidity { font-size: 14px; color: var(--text-muted); }
+.indoor-temp     { font-size: 26px; font-weight: 700; }
+.indoor-humidity { font-size: 21px; color: var(--text-muted); }
 
 /* ============================================================
-   Controls panel (shared)
+   Controls panel
    ============================================================ */
 .controls-panel { justify-content: center; }
 
 .controls-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
   flex: 1;
-  justify-content: center;
+  align-content: center;
 }
 
-/* Generic control button */
 .ctrl-btn {
   position: relative;
   display: flex;
@@ -231,63 +206,24 @@ body {
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  padding: 14px 10px;
+  padding: 10px 28px;
+  max-height: calc((100vh - var(--header-h) - 4 * var(--gap)) / 8);
   transition: background 0.2s, transform 0.1s;
   color: var(--text);
   font-size: 15px;
-  min-height: 70px;
   -webkit-tap-highlight-color: transparent;
 }
 .ctrl-btn:active { transform: scale(0.97); }
 
-/* Shade and fan buttons sit in a 2-column row */
 .ctrl-btn.shade-btn,
-.ctrl-btn.fan-btn {
-  background: var(--btn-inactive);
-}
+.ctrl-btn.fan-btn { background: var(--btn-inactive); }
 .ctrl-btn.shade-btn.active,
-.ctrl-btn.fan-btn.active {
-  background: var(--btn-active);
-}
+.ctrl-btn.fan-btn.active { background: var(--btn-active); }
 
-/* The 2×2 grid for shades and fans */
-.controls-grid > .ctrl-btn {
-  /* shade-btn and fan-btn are wrapped in a row — handled below */
-}
-
-/* Rows inside controls-grid */
-.controls-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-/* Two-column rows for shades and fans */
-.controls-grid > .ctrl-btn:not(.hvac-center) {
-  /* Direct ctrl-btn children = pairs, handled via CSS hack below */
-}
-
-/* Override: shades and fans rendered as a 2×2 grid */
-.controls-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto auto;
-  gap: 14px;
-}
-.hvac-row {
-  grid-column: 1 / -1;  /* span full width */
-  display: flex;
-  gap: 6px;
-  align-items: stretch;
-}
-
-/* Status dot */
 .btn-dot {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  width: 10px;
-  height: 10px;
+  top: 9px; left: 9px;
+  width: 10px; height: 10px;
   border-radius: 50%;
   background: var(--dot-off);
   transition: background 0.2s;
@@ -295,42 +231,106 @@ body {
 .ctrl-btn.active .btn-dot { background: var(--dot-on); }
 
 .btn-label { font-size: 15px; font-weight: 500; }
-.btn-sub   { font-size: 12px; color: rgba(255,255,255,0.65); }
+.btn-sub   { font-size: 12px; color: rgba(255,255,255,0.6); }
 
-/* HVAC row */
+.hvac-row {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+  max-height: calc((100vh - var(--header-h) - 4 * var(--gap)) / 8);
+}
+
 .hvac-setpoint {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  padding: 8px 14px;
+  padding: 8px 16px;
   min-width: 80px;
   gap: 2px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 .hvac-setpoint.heat { background: var(--heat); }
 .hvac-setpoint.cool { background: var(--cool); }
+.hvac-setpoint:active { opacity: 0.85; }
 
-.sp-arrow {
-  background: none; border: none; color: rgba(255,255,255,0.8);
-  font-size: 14px; cursor: pointer; padding: 2px 8px;
-  -webkit-tap-highlight-color: transparent;
-}
-.sp-arrow:hover { color: white; }
-.sp-value { font-size: 22px; font-weight: 700; color: white; }
+.sp-value { font-size: 24px; font-weight: 700; color: white; }
+.sp-hint  { font-size: 10px; color: rgba(255,255,255,0.55); }
 
 .hvac-center {
   flex: 1;
   background: var(--btn-inactive);
   border-radius: 8px;
-  min-height: 70px;
 }
-.hvac-center.active { background: var(--btn-inactive); }  /* always gray bg */
 .hvac-center .btn-dot { background: var(--dot-off); }
 .hvac-center.hvac-running .btn-dot { background: var(--dot-on); }
 
 /* ============================================================
-   History charts
+   Tape picker overlay
+   ============================================================ */
+.tape-backdrop {
+  position: fixed; inset: 0;
+  z-index: 99;
+  background: transparent;
+}
+
+.tape-overlay {
+  position: fixed;
+  z-index: 100;
+  background: #1a1a1a;
+  border: 1px solid #555;
+  border-radius: 14px;
+  width: 100px;
+  height: 260px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  touch-action: none;
+}
+
+.tape-track { height: 100%; overflow: hidden; position: relative; }
+
+.tape-items {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  will-change: transform;
+  cursor: grab;
+}
+.tape-items:active { cursor: grabbing; }
+
+.tape-item {
+  height: 52px; width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: color 0.08s, font-size 0.08s;
+}
+.tape-item.selected { color: white; font-size: 28px; font-weight: 700; }
+
+/* top/bottom fade lines bracketing the selected item */
+.tape-center-indicator {
+  position: absolute;
+  top: calc(50% - 26px); left: 8px; right: 8px;
+  height: 52px;
+  border-top: 1px solid rgba(255,255,255,0.22);
+  border-bottom: 1px solid rgba(255,255,255,0.22);
+  pointer-events: none;
+}
+
+.tape-close {
+  position: absolute; top: 4px; right: 6px;
+  background: none; border: none;
+  color: var(--text-muted); font-size: 14px;
+  cursor: pointer; padding: 4px; z-index: 1;
+}
+
+/* ============================================================
+   History / chart panels
    ============================================================ */
 .chart-panel { gap: 8px; }
 
@@ -343,32 +343,25 @@ body {
 }
 
 .range-select-wrap {
-  display: flex;
-  align-items: center;
+  display: flex; align-items: center;
   background: #2a2a2a;
   border: 1px solid var(--panel-border);
   border-radius: 6px;
   padding: 6px 10px;
-  gap: 6px;
-  flex: 1;
+  gap: 6px; flex: 1;
 }
 .range-icon { font-size: 14px; }
 .range-select {
-  background: transparent;
-  border: none;
-  color: var(--text);
-  font-size: 14px;
-  flex: 1;
-  outline: none;
-  cursor: pointer;
+  background: transparent; border: none;
+  color: var(--text); font-size: 14px;
+  flex: 1; outline: none; cursor: pointer;
   appearance: none;
 }
 .range-select option { background: #2a2a2a; }
 .range-arrow { color: var(--text-muted); font-size: 10px; }
 
 .date-nav {
-  display: flex;
-  align-items: center;
+  display: flex; align-items: center;
   background: #2a2a2a;
   border: 1px solid var(--panel-border);
   border-radius: 6px;
@@ -380,40 +373,41 @@ body {
   padding: 6px 10px; cursor: pointer;
 }
 .date-nav-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-.date-nav-label {
-  font-size: 13px; color: var(--text-muted);
-  padding: 0 10px; white-space: nowrap;
-}
+.date-nav-label { font-size: 13px; color: var(--text-muted); padding: 0 10px; white-space: nowrap; }
 
-.chart-wrap {
-  flex: 1;
-  min-height: 0;
-  position: relative;
-}
+.chart-wrap { flex: 1; min-height: 0; position: relative; }
 .chart-wrap canvas { width: 100% !important; height: 100% !important; }
 
+/* Two-column stats */
 .chart-stats {
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
   border-top: 1px solid var(--panel-border);
-  margin-top: 4px;
+  padding-top: 6px; margin-top: 4px;
+}
+.two-col-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 10px;
+}
+.stat-col { display: flex; flex-direction: column; }
+.stat-col-hdr {
+  font-size: 12px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 2px 0 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 2px;
 }
 .stat-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 4px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  font-size: 13px;
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 3px 0; font-size: 13px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
 }
-.stat-icon { color: var(--text-muted); width: 16px; }
-.stat-row strong { flex: 1; color: var(--text-muted); font-weight: 500; }
+.stat-lbl { color: var(--text-muted); }
 .stat-val { color: #4fc3f7; font-weight: 600; }
 
 /* ============================================================
-   Energy panel
+   Energy panel / gauges
    ============================================================ */
 .energy-panel { gap: 10px; }
 
@@ -422,63 +416,39 @@ body {
   justify-content: space-around;
   align-items: flex-start;
   flex-shrink: 0;
-  padding: 0 8px;
 }
 .gauge-wrap {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   flex: 1;
 }
-.gauge-svg { width: 120px; height: 70px; }
-.gauge-value { font-size: 20px; font-weight: 700; }
-.gauge-label  { font-size: 12px; color: var(--text-muted); }
+.gauge-svg { width: 100%; max-width: 110px; height: auto; }
+.gauge-value { font-size: 18px; font-weight: 700; margin-top: -2px; }
+.gauge-label { font-size: 12px; color: var(--text-muted); }
 
 /* ============================================================
-   Diagnostic panel
+   Diagnostic page
    ============================================================ */
-.diag-panel { flex: 1; min-height: 0; }
+.diag-panel {
+  flex-shrink: 0;
+  min-height: 280px;
+}
+.diag-panel-tall { min-height: 200px; }
+.chart-wrap-full { flex: 1; min-height: 200px; }
 
-.diag-stats-inline {
-  display: flex; gap: 20px;
-}
-.diag-stat {
-  font-size: 13px; color: var(--text-muted);
-}
+.diag-stats-inline { display: flex; gap: 24px; }
+.diag-stat { font-size: 14px; color: var(--text-muted); }
 .diag-stat strong { color: var(--text); }
 
-.chart-wrap-full {
-  flex: 1;
-  min-height: 0;
-}
-
 /* ============================================================
-   Responsive — phone (portrait 9:16)
+   Responsive — phone portrait
    ============================================================ */
 @media (max-aspect-ratio: 1/1) {
   body { overflow-y: auto; }
   .page-content { height: auto; overflow: visible; }
-
-  .two-col-layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
-    height: auto;
-  }
-
+  .two-col-layout { grid-template-columns: 1fr; height: auto; }
   .panel { min-height: 400px; }
-
   .greenhouse-wrap { min-height: 260px; }
-
-  .indoor-bubble {
-    width: 90px; height: 90px;
-    bottom: 10%; right: 8%;
-  }
-  .indoor-temp { font-size: 20px; }
-}
-
-/* ============================================================
-   Responsive — desktop (wider than 1280px)
-   ============================================================ */
-@media (min-width: 1400px) {
-  :root { font-size: 16px; }
-  .weather-temp { font-size: 32px; }
-  .indoor-temp  { font-size: 28px; }
+  .indoor-bubble { width: 100px; height: 100px; }
+  .indoor-temp { font-size: 22px; }
+  .tab { font-size: 18px; padding: 0 14px; }
 }

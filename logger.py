@@ -118,6 +118,7 @@ def _migrate(conn):
     """Apply incremental schema changes to existing databases."""
     migrations = [
         "ALTER TABLE sensor_log ADD COLUMN circ_fans_on INTEGER",
+        "ALTER TABLE power_log ADD COLUMN freq_hz REAL",
     ]
     for sql in migrations:
         try:
@@ -237,13 +238,14 @@ def log_power(reading, energy_a_kwh=None, energy_b_kwh=None):
         """INSERT INTO power_log
            (timestamp, power_a_kw, current_a_a, voltage_a_v, energy_a_kwh,
             power_b_kw, current_b_a, voltage_b_v, energy_b_kwh,
-            power_total_kw, energy_total_kwh)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            power_total_kw, energy_total_kwh, freq_hz)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             datetime.now(timezone.utc).isoformat(),
             a["power_kw"], a["current_a"], a["voltage_v"], energy_a_kwh,
             b["power_kw"], b["current_a"], b["voltage_v"], energy_b_kwh,
             reading["total_power_kw"], energy_total,
+            reading.get("freq_hz"),
         ),
     )
     conn.commit()

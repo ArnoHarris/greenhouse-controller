@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Crescent (small, top-left) -->
-  <path d="M24 10 A10 10 0 1 0 24 30 A7 7 0 1 1 24 10 Z"
-        fill="#f0c040" opacity="0.9"/>
-  <!-- Cloud -->
-  <path d="M16 50 Q16 44 22 44 Q23 38 30 38 Q38 38 39 45 Q44 44 44 50 Z"
-        fill="#ffffff" stroke="none"/>
-</svg>

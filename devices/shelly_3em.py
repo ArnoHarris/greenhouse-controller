@@ -65,4 +65,5 @@ class Shelly3EM:
                 "total_kwh": total_kwh_b,
             },
             "total_power_kw": em["total_act_power"] / 1000.0,
+            "freq_hz": em.get("freq"),
         }

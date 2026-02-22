@@ -20,9 +20,9 @@
         <span class="range-arrow">▼</span>
       </div>
       <div class="date-nav">
-        <button class="date-nav-btn" id="temp-prev" onclick="shiftTempRange(-1)">‹</button>
+        <button class="date-nav-btn" onclick="shiftTempRange(-1)">‹</button>
         <span class="date-nav-label" id="temp-date-label">—</span>
-        <button class="date-nav-btn" id="temp-next" onclick="shiftTempRange(+1)">›</button>
+        <button class="date-nav-btn" onclick="shiftTempRange(+1)">›</button>
       </div>
     </div>
 
@@ -30,16 +30,25 @@
       <canvas id="temp-chart"></canvas>
     </div>
 
-    <div class="chart-stats">
-      <div class="stat-row"><span class="stat-icon">%</span><strong>Average</strong><span class="stat-val" id="temp-avg">—</span></div>
-      <div class="stat-row"><span class="stat-icon">↑</span><strong>Max</strong><span class="stat-val" id="temp-max">—</span></div>
-      <div class="stat-row"><span class="stat-icon">↓</span><strong>Min</strong><span class="stat-val" id="temp-min">—</span></div>
+    <div class="chart-stats two-col-stats">
+      <div class="stat-col">
+        <div class="stat-col-hdr">Indoor</div>
+        <div class="stat-row"><span class="stat-lbl">Avg</span><span class="stat-val" id="temp-avg-in">—</span></div>
+        <div class="stat-row"><span class="stat-lbl">Max</span><span class="stat-val" id="temp-max-in">—</span></div>
+        <div class="stat-row"><span class="stat-lbl">Min</span><span class="stat-val" id="temp-min-in">—</span></div>
+      </div>
+      <div class="stat-col">
+        <div class="stat-col-hdr">Outdoor</div>
+        <div class="stat-row"><span class="stat-lbl">Avg</span><span class="stat-val" id="temp-avg-out">—</span></div>
+        <div class="stat-row"><span class="stat-lbl">Max</span><span class="stat-val" id="temp-max-out">—</span></div>
+        <div class="stat-row"><span class="stat-lbl">Min</span><span class="stat-val" id="temp-min-out">—</span></div>
+      </div>
     </div>
   </div>
 
-  <!-- RIGHT: Humidity -->
+  <!-- RIGHT: Relative Humidity -->
   <div class="panel chart-panel">
-    <div class="panel-title">humidity</div>
+    <div class="panel-title">relative humidity</div>
 
     <div class="chart-controls">
       <div class="range-select-wrap">
@@ -54,9 +63,9 @@
         <span class="range-arrow">▼</span>
       </div>
       <div class="date-nav">
-        <button class="date-nav-btn" id="hum-prev" onclick="shiftHumRange(-1)">‹</button>
+        <button class="date-nav-btn" onclick="shiftHumRange(-1)">‹</button>
         <span class="date-nav-label" id="hum-date-label">—</span>
-        <button class="date-nav-btn" id="hum-next" onclick="shiftHumRange(+1)">›</button>
+        <button class="date-nav-btn" onclick="shiftHumRange(+1)">›</button>
       </div>
     </div>
 
@@ -64,10 +73,19 @@
       <canvas id="hum-chart"></canvas>
     </div>
 
-    <div class="chart-stats">
-      <div class="stat-row"><span class="stat-icon">%</span><strong>Average</strong><span class="stat-val" id="hum-avg">—</span></div>
-      <div class="stat-row"><span class="stat-icon">↑</span><strong>Max</strong><span class="stat-val" id="hum-max">—</span></div>
-      <div class="stat-row"><span class="stat-icon">↓</span><strong>Min</strong><span class="stat-val" id="hum-min">—</span></div>
+    <div class="chart-stats two-col-stats">
+      <div class="stat-col">
+        <div class="stat-col-hdr">Indoor</div>
+        <div class="stat-row"><span class="stat-lbl">Avg</span><span class="stat-val" id="hum-avg-in">—</span></div>
+        <div class="stat-row"><span class="stat-lbl">Max</span><span class="stat-val" id="hum-max-in">—</span></div>
+        <div class="stat-row"><span class="stat-lbl">Min</span><span class="stat-val" id="hum-min-in">—</span></div>
+      </div>
+      <div class="stat-col">
+        <div class="stat-col-hdr">Outdoor</div>
+        <div class="stat-row"><span class="stat-lbl">Avg</span><span class="stat-val" id="hum-avg-out">—</span></div>
+        <div class="stat-row"><span class="stat-lbl">Max</span><span class="stat-val" id="hum-max-out">—</span></div>
+        <div class="stat-row"><span class="stat-lbl">Min</span><span class="stat-val" id="hum-min-out">—</span></div>
+      </div>
     </div>
   </div>
 
@@ -76,6 +94,7 @@
 
 {% block page_script %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <script>
   initHistoryPage();
 </script>

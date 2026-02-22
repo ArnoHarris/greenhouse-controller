@@ -147,12 +147,15 @@ def api_state():
             })
 
         if power:
+            va = power["voltage_a_v"] or 0
+            vb = power["voltage_b_v"] or 0
             state.update({
                 "power_kw": power["power_total_kw"],
                 "power_a_kw": power["power_a_kw"],
                 "power_b_kw": power["power_b_kw"],
                 "current_a": power["current_a_a"],
-                "voltage_v": power["voltage_a_v"],
+                "voltage_v": va + vb,          # sum of both legs
+                "freq_hz": power["freq_hz"],
             })
 
         if forecast_row:
@@ -284,6 +287,140 @@ def api_power():
                 FROM power_log
                 WHERE timestamp > datetime('now', '{interval}')
                 ORDER BY timestamp ASC"""
+        ).fetchall()
+        conn.close()
+        return jsonify([dict(r) for r in rows])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# API: solar forecast vs actual (diagnostic)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/solar_forecast")
+def api_solar_forecast():
+    range_param = request.args.get("range", "24h")
+    interval = RANGE_MAP.get(range_param, "-24 hours")
+    try:
+        conn = get_db()
+        # Actual solar from sensor_log
+        actual = conn.execute(
+            f"""SELECT timestamp, solar_irradiance_wm2
+                FROM sensor_log
+                WHERE timestamp > datetime('now', '{interval}')
+                  AND solar_irradiance_wm2 IS NOT NULL
+                ORDER BY timestamp ASC"""
+        ).fetchall()
+        # Forecast solar from forecast_log
+        forecasts = conn.execute(
+            f"""SELECT timestamp, corrected_forecast
+                FROM forecast_log
+                WHERE timestamp > datetime('now', '{interval}')
+                ORDER BY timestamp ASC"""
+        ).fetchall()
+        conn.close()
+
+        forecast_pts = []
+        for row in forecasts:
+            try:
+                fc = json.loads(row["corrected_forecast"])
+                times = fc.get("hourly", {}).get("time", [])
+                solar = fc.get("hourly", {}).get("direct_radiation", []) or \
+                        fc.get("hourly", {}).get("shortwave_radiation", [])
+                for i, t in enumerate(times):
+                    if i < len(solar) and solar[i] is not None:
+                        forecast_pts.append({"timestamp": t, "solar_wm2": solar[i]})
+            except Exception:
+                pass
+
+        return jsonify({
+            "actual": [dict(r) for r in actual],
+            "forecast": forecast_pts,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# API: actuator timeline (diagnostic)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/actuator_timeline")
+def api_actuator_timeline():
+    range_param = request.args.get("range", "24h")
+    interval = RANGE_MAP.get(range_param, "-24 hours")
+    try:
+        conn = get_db()
+        rows = conn.execute(
+            f"""SELECT timestamp, shades_east, shades_west, fan_on,
+                       circ_fans_on, hvac_mode, power_total_kw
+                FROM sensor_log s
+                LEFT JOIN (
+                    SELECT timestamp AS p_ts, power_total_kw
+                    FROM power_log
+                    WHERE timestamp > datetime('now', '{interval}')
+                ) p ON substr(s.timestamp,1,16) = substr(p.p_ts,1,16)
+                WHERE s.timestamp > datetime('now', '{interval}')
+                ORDER BY s.timestamp ASC"""
+        ).fetchall()
+        conn.close()
+        return jsonify(_compute_actuator_timeline([dict(r) for r in rows]))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def _compute_actuator_timeline(rows):
+    """Convert time-series rows into ON/OFF periods per actuator."""
+    checks = {
+        "East Shades":      lambda r: r.get("shades_east") == "closed",
+        "West Shades":      lambda r: r.get("shades_west") == "closed",
+        "Exhaust Fans":     lambda r: bool(r.get("fan_on")),
+        "Circ Fans":        lambda r: bool(r.get("circ_fans_on")),
+        "HVAC":             lambda r: bool(r.get("hvac_mode") and r.get("hvac_mode") != "off"),
+    }
+    periods = {k: [] for k in checks}
+    current = {k: None for k in checks}
+
+    for row in rows:
+        ts = row["timestamp"]
+        for name, fn in checks.items():
+            try:
+                on = fn(row)
+            except Exception:
+                on = False
+            if on and current[name] is None:
+                current[name] = ts
+            elif not on and current[name] is not None:
+                periods[name].append({"start": current[name], "end": ts})
+                current[name] = None
+
+    if rows:
+        last_ts = rows[-1]["timestamp"]
+        for name in checks:
+            if current[name] is not None:
+                periods[name].append({"start": current[name], "end": last_ts})
+
+    return periods
+
+
+# ---------------------------------------------------------------------------
+# API: HVAC runtime (diagnostic)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/hvac_runtime")
+def api_hvac_runtime():
+    range_param = request.args.get("range", "7d")
+    interval = RANGE_MAP.get(range_param, "-7 days")
+    try:
+        conn = get_db()
+        rows = conn.execute(
+            f"""SELECT date(timestamp) as day,
+                       SUM(CASE WHEN hvac_mode != 'off' AND hvac_mode IS NOT NULL THEN 5 ELSE 0 END) / 60.0 as hours
+                FROM sensor_log
+                WHERE timestamp > datetime('now', '{interval}')
+                GROUP BY day
+                ORDER BY day ASC"""
         ).fetchall()
         conn.close()
         return jsonify([dict(r) for r in rows])

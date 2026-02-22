@@ -1,14 +1,11 @@
 /* ============================================================
    Greenhouse Controls — dashboard.js
-   Handles: live state polling, override buttons, charts
    ============================================================ */
 
 "use strict";
 
 // ---------------------------------------------------------------------------
-// WMO weather code → icon filename mapping
-// Day vs. night determined by comparing current hour to sunrise/sunset
-// (sunrise/sunset comes from Open-Meteo hourly data in forecast)
+// WMO weather code → icon filename
 // ---------------------------------------------------------------------------
 const WMO_ICON_MAP = {
   0:  { day: "clear-day",           night: "clear-night" },
@@ -46,7 +43,6 @@ function wmoIcon(code, isDay) {
   return `/static/icons/${isDay ? entry.day : entry.night}.png`;
 }
 
-// Simple daytime check: 6am–8pm local time
 function isDaytime() {
   const h = new Date().getHours();
   return h >= 6 && h < 20;
@@ -58,9 +54,8 @@ function isDaytime() {
 function updateClock() {
   const el = document.getElementById("nav-datetime");
   if (!el) return;
-  const now = new Date();
   const opts = { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" };
-  el.textContent = now.toLocaleString("en-US", opts);
+  el.textContent = new Date().toLocaleString("en-US", opts);
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -69,7 +64,7 @@ updateClock();
 // State polling
 // ---------------------------------------------------------------------------
 let _lastState = null;
-let _fanOverrideExpires = null;   // Date object or null
+let _fanOverrideExpires = null;
 
 function startDashboardPolling() {
   fetchState();
@@ -99,33 +94,34 @@ function applyState(s) {
   }
 
   // Temperatures
-  setText("outdoor-temp", s.outdoor_temp != null ? fmtTemp(s.outdoor_temp) : "—°F");
-  setText("outdoor-humidity", s.outdoor_humidity != null ? Math.round(s.outdoor_humidity) : "—");
-  setText("indoor-temp",   s.indoor_temp != null ? fmtTemp(s.indoor_temp) : "—°F");
-  setText("indoor-humidity", s.indoor_humidity != null ? Math.round(s.indoor_humidity) : "—");
+  setText("outdoor-temp",     s.outdoor_temp     != null ? fmtTemp(s.outdoor_temp)          : "—°F");
+  setText("outdoor-humidity", s.outdoor_humidity != null ? Math.round(s.outdoor_humidity)    : "—");
+  setText("indoor-temp",      s.indoor_temp      != null ? fmtTemp(s.indoor_temp)            : "—°F");
+  setText("indoor-humidity",  s.indoor_humidity  != null ? Math.round(s.indoor_humidity)     : "—");
 
-  // Forecast
+  // Forecast icons + arrow temp
   if (s.forecast) {
     const fc = s.forecast;
-    if (fc.forecast_2h_temp != null) {
-      // Open-Meteo returns Celsius — convert to F
-      const tempF = celsiusToF(fc.forecast_2h_temp);
-      setText("forecast-temp", fmtTemp(tempF));
-    }
-    // Weather icons
+    if (fc.forecast_2h_temp != null) setText("forecast-temp", fmtTemp(celsiusToF(fc.forecast_2h_temp)));
     const day = isDaytime();
-    setIcon("icon-current",  wmoIcon(s.forecast.current_code, day));
-    setIcon("icon-forecast", wmoIcon(s.forecast.forecast_2h_code, day));
+    setIcon("icon-current",  wmoIcon(fc.current_code,     day));
+    setIcon("icon-forecast", wmoIcon(fc.forecast_2h_code, day));
   }
-
-  // Forecast humidity: not directly available, show current outdoor humidity as approximate
   setText("forecast-humidity", s.outdoor_humidity != null ? Math.round(s.outdoor_humidity) : "—");
 
-  // Greenhouse image
+  // Build override lookup
+  const overrides = {};
+  if (s.overrides) {
+    for (const ov of s.overrides) overrides[ov.actuator] = ov;
+  }
+
+  // Greenhouse image — use override command when active
   const img = document.getElementById("greenhouse-img");
   if (img) {
-    const east = s.shades_east || "open";
-    const west = s.shades_west || "open";
+    const eastOv = overrides["shades_east"];
+    const westOv = overrides["shades_west"];
+    const east = eastOv ? (tryParseCmd(eastOv.command).position || s.shades_east || "open") : (s.shades_east || "open");
+    const west = westOv ? (tryParseCmd(westOv.command).position || s.shades_west || "open") : (s.shades_west || "open");
     let imgName = "greenhouse-open";
     if (east === "closed" && west === "closed") imgName = "greenhouse-both";
     else if (east === "closed") imgName = "greenhouse-east";
@@ -133,33 +129,22 @@ function applyState(s) {
     img.src = `/static/images/${imgName}.png`;
   }
 
-  // Build override lookup
-  const overrides = {};
-  if (s.overrides) {
-    for (const ov of s.overrides) {
-      overrides[ov.actuator] = ov;
-    }
-  }
-
   // Control buttons
   applyBtn("btn-shades-east", s.shades_east === "closed", overrides["shades_east"]);
   applyBtn("btn-shades-west", s.shades_west === "closed", overrides["shades_west"]);
-  applyBtn("btn-fan",        s.fan_on,                   overrides["fan"]);
-  applyBtn("btn-circ-fans",  s.circ_fans_on,             overrides["circ_fans"]);
+  applyBtn("btn-fan",         s.fan_on,                   overrides["fan"]);
+  applyBtn("btn-circ-fans",   s.circ_fans_on,             overrides["circ_fans"]);
 
   // HVAC
   const hvacOn = s.hvac_mode && s.hvac_mode !== "off";
   applyBtn("btn-hvac", hvacOn, overrides["hvac"]);
   const hvacBtn = document.getElementById("btn-hvac");
-  if (hvacBtn) {
-    hvacBtn.classList.toggle("hvac-running", hvacOn);
-  }
+  if (hvacBtn) hvacBtn.classList.toggle("hvac-running", hvacOn);
 
   // HVAC setpoints
   if (s.settings) {
     setText("heat-setpoint", s.settings.hvac_heat_setpoint + "°");
     setText("cool-setpoint", s.settings.hvac_cool_setpoint + "°");
-    // Store for adjustSetpoint()
     window._settings = s.settings;
   }
 
@@ -172,25 +157,41 @@ function applyState(s) {
     setText("fan-timer", "5:00 min");
   }
 
-  // Gauges (energy page)
-  if (s.power_kw != null) {
-    updateGauge("gauge-power",   s.power_kw,   "kW",  0, 5);
-    updateGauge("gauge-current", s.current_a,  "A",   0, 30);
-    updateGauge("gauge-voltage", s.voltage_v,  "V",   200, 260);
-  }
+  // Gauges (energy page — no-ops on other pages)
+  drawGauge("gauge-freq-svg",    "gauge-freq",    s.freq_hz,   GAUGE_SPECS.freq);
+  drawGauge("gauge-power-svg",   "gauge-power",   s.power_kw,  GAUGE_SPECS.power);
+  drawGauge("gauge-current-svg", "gauge-current", s.current_a, GAUGE_SPECS.current);
+  drawGauge("gauge-voltage-svg", "gauge-voltage", s.voltage_v, GAUGE_SPECS.voltage);
 }
 
+function tryParseCmd(json) {
+  try { return JSON.parse(json || "{}"); } catch { return {}; }
+}
+
+// ---------------------------------------------------------------------------
+// Button state
+// ---------------------------------------------------------------------------
 function applyBtn(id, isOn, override) {
   const btn = document.getElementById(id);
   if (!btn) return;
-  // Active = device state is "on" OR there's an active override
-  const active = !!isOn;
+  let active;
+  if (override) {
+    const cmd = tryParseCmd(override.command);
+    if ("position" in cmd) active = cmd.position === "closed";
+    else if ("on"   in cmd) active = !!cmd.on;
+    else if ("mode" in cmd) active = cmd.mode !== "off";
+    else active = !!isOn;
+  } else {
+    active = !!isOn;
+  }
   btn.classList.toggle("active", active);
   const dot = btn.querySelector(".btn-dot");
   if (dot) dot.style.background = active ? "var(--dot-on)" : "var(--dot-off)";
 }
 
-// Fan countdown timer (ticks every second)
+// ---------------------------------------------------------------------------
+// Fan countdown timer
+// ---------------------------------------------------------------------------
 function tickFanTimer() {
   const el = document.getElementById("fan-timer");
   if (!el) return;
@@ -208,45 +209,41 @@ function tickFanTimer() {
 }
 
 // ---------------------------------------------------------------------------
-// Override button handlers (attached via onclick in HTML via event delegation)
+// Override button handlers
 // ---------------------------------------------------------------------------
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".ctrl-btn[data-actuator]").forEach(btn => {
     btn.addEventListener("click", handleOverrideClick);
   });
+  document.addEventListener("pointermove",   tapeDragMove);
+  document.addEventListener("pointerup",     tapeDragEnd);
+  document.addEventListener("pointercancel", tapeDragEnd);
 });
 
 async function handleOverrideClick(e) {
-  const btn = e.currentTarget;
+  const btn      = e.currentTarget;
   const actuator = btn.dataset.actuator;
   const isActive = btn.classList.contains("active");
   const duration = parseInt(btn.dataset.duration || "120");
 
-  // Toggle: if active, cancel override; if inactive, set override
   if (isActive) {
-    // Cancel override → device returns to controller
     try {
-      const res = await fetch(`/api/override/${actuator}`, { method: "DELETE" });
+      const res  = await fetch(`/api/override/${actuator}`, { method: "DELETE" });
       const data = await res.json();
       if (data.ok) {
         btn.classList.remove("active");
         const dot = btn.querySelector(".btn-dot");
         if (dot) dot.style.background = "var(--dot-off)";
+        if (actuator === "fan") {
+          _fanOverrideExpires = null;
+          setText("fan-timer", "5:00 min");
+        }
       }
-    } catch (err) {
-      console.error("Cancel override failed:", err);
-    }
+    } catch (err) { console.error("Cancel override failed:", err); }
   } else {
-    // Determine command
-    let command;
+    const command = tryParseCmd(btn.dataset.cmdOn || "{}");
     try {
-      command = JSON.parse(btn.dataset.cmdOn || "{}");
-    } catch {
-      command = {};
-    }
-
-    try {
-      const res = await fetch("/api/override", {
+      const res  = await fetch("/api/override", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ actuator, command, duration_minutes: duration }),
@@ -260,202 +257,302 @@ async function handleOverrideClick(e) {
           _fanOverrideExpires = new Date(data.expires_at);
         }
       }
-    } catch (err) {
-      console.error("Set override failed:", err);
-    }
+    } catch (err) { console.error("Set override failed:", err); }
   }
 }
 
 // ---------------------------------------------------------------------------
-// HVAC setpoint spinners
+// Tape picker — HVAC setpoint
 // ---------------------------------------------------------------------------
-let _spDebounce = null;
+const TAPE_MIN    = 40;
+const TAPE_MAX    = 95;
+const TAPE_ITEM_H = 52;     // must match CSS .tape-item height
+const TAPE_CTR_Y  = 130;    // overlay height / 2
 
-function adjustSetpoint(which, delta) {
-  const id = which === "heat" ? "heat-setpoint" : "cool-setpoint";
-  const key = which === "heat" ? "hvac_heat_setpoint" : "hvac_cool_setpoint";
-  const el = document.getElementById(id);
-  if (!el) return;
+let _tapeWhich         = null;
+let _tapeDragging      = false;
+let _tapeDragStartY    = 0;
+let _tapeStartOffset   = 0;
+let _tapeCurrentOffset = 0;
 
+function tapeOffsetForValue(val) {
+  const i = val - TAPE_MIN;
+  return TAPE_CTR_Y - TAPE_ITEM_H / 2 - i * TAPE_ITEM_H;
+}
+
+function valueFromOffset(offset) {
+  const i = (TAPE_CTR_Y - TAPE_ITEM_H / 2 - offset) / TAPE_ITEM_H;
+  return Math.max(TAPE_MIN, Math.min(TAPE_MAX, Math.round(i) + TAPE_MIN));
+}
+
+function openTape(which, anchorEl) {
+  _tapeWhich = which;
   const settings = window._settings || {};
-  let val = parseInt(settings[key] || (which === "heat" ? 60 : 80));
-  val = Math.max(40, Math.min(95, val + delta));
+  const key = which === "heat" ? "hvac_heat_setpoint" : "hvac_cool_setpoint";
+  const val = parseInt(settings[key] || (which === "heat" ? 60 : 80));
+
+  // Build items
+  const container = document.getElementById("tape-items");
+  container.innerHTML = "";
+  for (let v = TAPE_MIN; v <= TAPE_MAX; v++) {
+    const item = document.createElement("div");
+    item.className = "tape-item" + (v === val ? " selected" : "");
+    item.textContent = v + "°";
+    item.dataset.val = v;
+    container.appendChild(item);
+  }
+
+  // Position tape
+  _tapeCurrentOffset = tapeOffsetForValue(val);
+  container.style.transition = "";
+  container.style.transform  = `translateY(${_tapeCurrentOffset}px)`;
+
+  // Position overlay near anchor
+  const tape = document.getElementById("setpoint-tape");
+  const rect = anchorEl.getBoundingClientRect();
+  tape.style.left = Math.min(rect.left, window.innerWidth - 116) + "px";
+  tape.style.top  = (rect.bottom + 8) + "px";
+  tape.style.display = "block";
+  document.getElementById("tape-backdrop").style.display = "block";
+
+  container.addEventListener("pointerdown", tapeDragStart);
+}
+
+function tapeDragStart(e) {
+  _tapeDragging   = true;
+  _tapeDragStartY = e.clientY;
+  _tapeStartOffset = _tapeCurrentOffset;
+  e.currentTarget.setPointerCapture(e.pointerId);
+  e.preventDefault();
+}
+
+function tapeDragMove(e) {
+  if (!_tapeDragging) return;
+  const delta = e.clientY - _tapeDragStartY;
+  _tapeCurrentOffset = _tapeStartOffset + delta;
+  const container = document.getElementById("tape-items");
+  if (!container) return;
+  container.style.transform = `translateY(${_tapeCurrentOffset}px)`;
+  const val = valueFromOffset(_tapeCurrentOffset);
+  container.querySelectorAll(".tape-item").forEach(item => {
+    item.classList.toggle("selected", parseInt(item.dataset.val) === val);
+  });
+}
+
+function tapeDragEnd(e) {
+  if (!_tapeDragging) return;
+  _tapeDragging = false;
+  const val = valueFromOffset(_tapeCurrentOffset);
+  commitTapeValue(val);
+}
+
+async function commitTapeValue(val) {
+  const which = _tapeWhich;
+  const key   = which === "heat" ? "hvac_heat_setpoint" : "hvac_cool_setpoint";
+  const id    = which === "heat" ? "heat-setpoint"      : "cool-setpoint";
+
+  setText(id, val + "°");
+
+  // Snap with transition
+  _tapeCurrentOffset = tapeOffsetForValue(val);
+  const container = document.getElementById("tape-items");
+  if (container) {
+    container.style.transition = "transform 0.15s";
+    container.style.transform  = `translateY(${_tapeCurrentOffset}px)`;
+    container.querySelectorAll(".tape-item").forEach(item => {
+      item.classList.toggle("selected", parseInt(item.dataset.val) === val);
+    });
+    setTimeout(() => { if (container) container.style.transition = ""; }, 200);
+  }
+
+  // Update settings
+  const settings = window._settings || {};
   settings[key] = val;
   window._settings = settings;
-  el.textContent = val + "°";
 
-  // Debounce API call
-  clearTimeout(_spDebounce);
-  _spDebounce = setTimeout(async () => {
-    try {
-      await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [key]: val }),
-      });
-    } catch (err) {
-      console.error("Settings update failed:", err);
-    }
-  }, 600);
+  try {
+    await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [key]: val }),
+    });
+  } catch (err) { console.error("Settings update failed:", err); }
+
+  setTimeout(() => closeTape(false), 400);
+}
+
+function closeTape() {
+  const tape     = document.getElementById("setpoint-tape");
+  const backdrop = document.getElementById("tape-backdrop");
+  if (tape)     tape.style.display     = "none";
+  if (backdrop) backdrop.style.display = "none";
+  _tapeWhich    = null;
+  _tapeDragging = false;
 }
 
 // ---------------------------------------------------------------------------
-// Gauge updater (energy page)
+// Gauge drawing (energy page)
 // ---------------------------------------------------------------------------
-function updateGauge(id, value, unit, min, max) {
-  const valEl = document.getElementById(id);
+const SVG_NS = "http://www.w3.org/2000/svg";
+const GAUGE_R  = 50;
+const GAUGE_CX = 60;
+const GAUGE_CY = 65;
+const GAUGE_SW = 12;
+
+const GAUGE_SPECS = {
+  freq:    { min: 59,  max: 61,  unit: "Hz", dec: 2,
+    zones: [{a:59,  b:59.5, c:"#e03030"},{a:59.5,b:60.5,c:"#3fdc3f"},{a:60.5,b:61,  c:"#e03030"}] },
+  power:   { min: 0,   max: 16,  unit: "kW", dec: 1,
+    zones: [{a:0,   b:10,   c:"#3fdc3f"},{a:10,  b:14,  c:"#f0c040"},{a:14,  b:16,  c:"#e03030"}] },
+  current: { min: 0,   max: 70,  unit: "A",  dec: 1,
+    zones: [{a:0,   b:45,   c:"#3fdc3f"},{a:45,  b:55,  c:"#f0c040"},{a:55,  b:70,  c:"#e03030"}] },
+  voltage: { min: 215, max: 265, unit: "V",  dec: 0,
+    zones: [{a:215, b:228,  c:"#e03030"},{a:228, b:252, c:"#3fdc3f"},{a:252, b:265, c:"#e03030"}] },
+};
+
+function gaugeArcPoint(frac) {
+  const angle = Math.PI * (1 - frac);
+  return { x: GAUGE_CX + GAUGE_R * Math.cos(angle), y: GAUGE_CY - GAUGE_R * Math.sin(angle) };
+}
+
+function gaugeArcPath(f1, f2) {
+  const p1 = gaugeArcPoint(f1);
+  const p2 = gaugeArcPoint(f2);
+  return `M ${p1.x.toFixed(2)},${p1.y.toFixed(2)} A ${GAUGE_R} ${GAUGE_R} 0 0 1 ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
+}
+
+function mkSvgEl(tag, attrs) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+  return el;
+}
+
+function drawGauge(svgId, valId, value, spec) {
+  const svg = document.getElementById(svgId);
+  if (!svg) return;
+
+  const valEl = document.getElementById(valId);
   if (valEl) {
-    if (value == null) { valEl.textContent = "—"; return; }
-    valEl.textContent = formatGaugeVal(value, unit);
+    valEl.textContent = value != null
+      ? (spec.dec === 0 ? Math.round(value) : value.toFixed(spec.dec)) + "\u00a0" + spec.unit
+      : "—";
   }
 
-  // Arc: arc total circumference for a 180° semicircle with r=50 → π*50 ≈ 157
-  const arcId = id + "-arc";
-  const arcEl = document.getElementById(arcId);
-  if (arcEl) {
-    const pct = Math.max(0, Math.min(1, (value - min) / (max - min)));
-    const arcLen = 157;
-    const offset = arcLen - pct * arcLen;
-    arcEl.style.strokeDashoffset = offset;
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+  // Background track (split at midpoint to avoid 180° SVG ambiguity)
+  const mid = gaugeArcPoint(0.5);
+  svg.appendChild(mkSvgEl("path", {
+    d: `M 10,65 A ${GAUGE_R} ${GAUGE_R} 0 0 1 ${mid.x.toFixed(2)},${mid.y.toFixed(2)} A ${GAUGE_R} ${GAUGE_R} 0 0 1 110,65`,
+    stroke: "#3a3a3a", "stroke-width": GAUGE_SW + 2, "stroke-linecap": "butt", fill: "none",
+  }));
+
+  // Colored zones
+  const range = spec.max - spec.min;
+  for (const z of spec.zones) {
+    svg.appendChild(mkSvgEl("path", {
+      d: gaugeArcPath((z.a - spec.min) / range, (z.b - spec.min) / range),
+      stroke: z.c, "stroke-width": GAUGE_SW, "stroke-linecap": "butt", fill: "none",
+    }));
   }
 
-  // Needle (rotate from -90° to +90°)
-  const needleId = id + "-needle";
-  const needleEl = document.getElementById(needleId);
-  if (needleEl) {
-    const pct = Math.max(0, Math.min(1, (value - min) / (max - min)));
-    const angleDeg = -90 + pct * 180;
-    // Pivot at (60, 65) — center bottom of the arc
-    needleEl.setAttribute("transform", `rotate(${angleDeg}, 60, 65)`);
+  // Needle + center dot
+  if (value != null) {
+    const frac = Math.max(0, Math.min(1, (value - spec.min) / range));
+    const pt   = gaugeArcPoint(frac);
+    svg.appendChild(mkSvgEl("line", {
+      x1: GAUGE_CX, y1: GAUGE_CY, x2: pt.x.toFixed(2), y2: pt.y.toFixed(2),
+      stroke: "white", "stroke-width": 2, "stroke-linecap": "round",
+    }));
+    svg.appendChild(mkSvgEl("circle", { cx: GAUGE_CX, cy: GAUGE_CY, r: 4, fill: "white" }));
   }
-}
-
-function formatGaugeVal(val, unit) {
-  if (val == null) return "—";
-  if (unit === "kW") return val.toFixed(1) + "kW";
-  if (unit === "A")  return val.toFixed(1) + "A";
-  if (unit === "V")  return Math.round(val) + "V";
-  return val + unit;
 }
 
 // ---------------------------------------------------------------------------
 // History page
 // ---------------------------------------------------------------------------
-let _tempChart = null;
-let _humChart  = null;
+let _tempChart  = null;
+let _humChart   = null;
 let _tempOffset = 0;
 let _humOffset  = 0;
 
 function initHistoryPage() {
-  fetchState();  // for controller badge
+  fetchState();
   loadTempChart();
   loadHumChart();
 }
 
 async function loadTempChart() {
   const range = document.getElementById("temp-range")?.value || "24h";
-  const data = await fetchHistory(range, _tempOffset);
-  if (!data.length) { updateDateLabel("temp-date-label", range, _tempOffset); return; }
+  const data  = await fetchHistory(range, _tempOffset);
+  updateDateLabel("temp-date-label", data);
+  if (!data.length) return;
 
-  const labels  = data.map(r => formatTimestamp(r.timestamp));
-  const indoors = data.map(r => r.indoor_temp_f);
-  const outdoors = data.map(r => r.outdoor_temp_f);
+  const indoor  = data.map(r => ({ x: new Date(r.timestamp), y: r.indoor_temp_f  }));
+  const outdoor = data.map(r => ({ x: new Date(r.timestamp), y: r.outdoor_temp_f }));
 
-  // Stats (indoor)
-  const vals = indoors.filter(v => v != null);
-  if (vals.length) {
-    setText("temp-avg", fmtTemp(avg(vals)));
-    setText("temp-max", fmtTemp(Math.max(...vals)));
-    setText("temp-min", fmtTemp(Math.min(...vals)));
+  const inVals  = data.map(r => r.indoor_temp_f).filter(v => v != null);
+  const outVals = data.map(r => r.outdoor_temp_f).filter(v => v != null);
+  if (inVals.length) {
+    setText("temp-avg-in",  fmtTemp(avg(inVals)));
+    setText("temp-max-in",  fmtTemp(Math.max(...inVals)));
+    setText("temp-min-in",  fmtTemp(Math.min(...inVals)));
   }
-
-  updateDateLabel("temp-date-label", range, _tempOffset, data);
+  if (outVals.length) {
+    setText("temp-avg-out", fmtTemp(avg(outVals)));
+    setText("temp-max-out", fmtTemp(Math.max(...outVals)));
+    setText("temp-min-out", fmtTemp(Math.min(...outVals)));
+  }
 
   const ctx = document.getElementById("temp-chart");
   if (!ctx) return;
-
   if (_tempChart) _tempChart.destroy();
   _tempChart = new Chart(ctx, {
     type: "line",
     data: {
-      labels,
       datasets: [
-        {
-          label: "Indoor °F",
-          data: indoors,
-          borderColor: "#ef5350",
-          backgroundColor: "rgba(239,83,80,0.08)",
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          fill: false,
-        },
-        {
-          label: "Outdoor °F",
-          data: outdoors,
-          borderColor: "#4fc3f7",
-          backgroundColor: "rgba(79,195,247,0.08)",
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          fill: false,
-        },
+        { label: "Indoor °F",  data: indoor,  borderColor: "#ef5350", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
+        { label: "Outdoor °F", data: outdoor, borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
       ],
     },
-    options: chartOptions("°F"),
+    options: chartOptions(range, "°F"),
   });
 }
 
 async function loadHumChart() {
   const range = document.getElementById("hum-range")?.value || "24h";
-  const data = await fetchHistory(range, _humOffset);
-  if (!data.length) { updateDateLabel("hum-date-label", range, _humOffset); return; }
+  const data  = await fetchHistory(range, _humOffset);
+  updateDateLabel("hum-date-label", data);
+  if (!data.length) return;
 
-  const labels   = data.map(r => formatTimestamp(r.timestamp));
-  const indoors  = data.map(r => r.indoor_humidity);
-  const outdoors = data.map(r => r.outdoor_humidity);
+  const indoor  = data.map(r => ({ x: new Date(r.timestamp), y: r.indoor_humidity  }));
+  const outdoor = data.map(r => ({ x: new Date(r.timestamp), y: r.outdoor_humidity }));
 
-  const vals = indoors.filter(v => v != null);
-  if (vals.length) {
-    setText("hum-avg", avg(vals).toFixed(1) + " %");
-    setText("hum-max", Math.max(...vals).toFixed(1) + " %");
-    setText("hum-min", Math.min(...vals).toFixed(1) + " %");
+  const inVals  = data.map(r => r.indoor_humidity).filter(v => v != null);
+  const outVals = data.map(r => r.outdoor_humidity).filter(v => v != null);
+  if (inVals.length) {
+    setText("hum-avg-in",  avg(inVals).toFixed(1) + " %");
+    setText("hum-max-in",  Math.max(...inVals).toFixed(1) + " %");
+    setText("hum-min-in",  Math.min(...inVals).toFixed(1) + " %");
   }
-
-  updateDateLabel("hum-date-label", range, _humOffset, data);
+  if (outVals.length) {
+    setText("hum-avg-out", avg(outVals).toFixed(1) + " %");
+    setText("hum-max-out", Math.max(...outVals).toFixed(1) + " %");
+    setText("hum-min-out", Math.min(...outVals).toFixed(1) + " %");
+  }
 
   const ctx = document.getElementById("hum-chart");
   if (!ctx) return;
-
   if (_humChart) _humChart.destroy();
   _humChart = new Chart(ctx, {
     type: "line",
     data: {
-      labels,
       datasets: [
-        {
-          label: "Indoor %",
-          data: indoors,
-          borderColor: "#4fc3f7",
-          backgroundColor: "rgba(79,195,247,0.08)",
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          fill: true,
-        },
-        {
-          label: "Outdoor %",
-          data: outdoors,
-          borderColor: "#80cbc4",
-          backgroundColor: "rgba(128,203,196,0.05)",
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          fill: false,
-        },
+        { label: "Indoor %",  data: indoor,  borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
+        { label: "Outdoor %", data: outdoor, borderColor: "#80cbc4", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
       ],
     },
-    options: chartOptions("%"),
+    options: chartOptions(range, "%"),
   });
 }
 
@@ -472,38 +569,40 @@ async function fetchHistory(range, offset) {
 // ---------------------------------------------------------------------------
 // Energy page
 // ---------------------------------------------------------------------------
-let _powerChart = null;
+let _powerChart  = null;
 let _powerOffset = 0;
 
 function initEnergyPage() {
+  drawGauge("gauge-freq-svg",    "gauge-freq",    null, GAUGE_SPECS.freq);
+  drawGauge("gauge-power-svg",   "gauge-power",   null, GAUGE_SPECS.power);
+  drawGauge("gauge-current-svg", "gauge-current", null, GAUGE_SPECS.current);
+  drawGauge("gauge-voltage-svg", "gauge-voltage", null, GAUGE_SPECS.voltage);
   loadPowerChart();
 }
 
 async function loadPowerChart() {
   const range = document.getElementById("power-range")?.value || "24h";
-  const data = await fetchPower(range, _powerOffset);
-  updateDateLabel("power-date-label", range, _powerOffset, data);
+  const data  = await fetchPower(range, _powerOffset);
+  updateDateLabel("power-date-label", data);
+  if (!data.length) return;
+
+  const phaseA = data.map(r => ({ x: new Date(r.timestamp), y: r.power_a_kw     }));
+  const phaseB = data.map(r => ({ x: new Date(r.timestamp), y: r.power_b_kw     }));
+  const total  = data.map(r => ({ x: new Date(r.timestamp), y: r.power_total_kw }));
 
   const ctx = document.getElementById("power-chart");
   if (!ctx) return;
-
-  const labels = data.map(r => formatTimestamp(r.timestamp));
-  const phaseA = data.map(r => r.power_a_kw);
-  const phaseB = data.map(r => r.power_b_kw);
-  const total  = data.map(r => r.power_total_kw);
-
   if (_powerChart) _powerChart.destroy();
   _powerChart = new Chart(ctx, {
     type: "line",
     data: {
-      labels,
       datasets: [
         { label: "Phase A kW", data: phaseA, borderColor: "#ce93d8", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
         { label: "Phase B kW", data: phaseB, borderColor: "#f0a030", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
         { label: "Total kW",   data: total,  borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
       ],
     },
-    options: chartOptions("kW"),
+    options: chartOptions(range, "kW"),
   });
 }
 
@@ -519,57 +618,182 @@ async function fetchPower(range, offset) {
 // ---------------------------------------------------------------------------
 // Diagnostic page
 // ---------------------------------------------------------------------------
-let _diagChart = null;
+let _diagTempChart    = null;
+let _solarChart       = null;
+let _timelineChart    = null;
+let _hvacRuntimeChart = null;
+
+const ACTUATOR_ORDER  = ["East Shades", "West Shades", "Exhaust Fans", "Circ Fans", "HVAC"];
+const ACTUATOR_COLORS = {
+  "East Shades": "#ce93d8",
+  "West Shades": "#f48fb1",
+  "Exhaust Fans": "#80deea",
+  "Circ Fans": "#a5d6a7",
+  "HVAC": "#f0a030",
+};
 
 function initDiagnosticPage() {
   fetchState();
-  loadDiagChart();
+  loadDiagCharts();
 }
 
-async function loadDiagChart() {
+function loadDiagCharts() {
   const range = document.getElementById("diag-range")?.value || "24h";
+  loadDiagTempChart(range);
+  loadSolarChart(range);
+  loadTimelineChart(range);
+  loadHvacRuntimeChart(range);
+}
+
+async function loadDiagTempChart(range) {
   try {
-    const res = await fetch(`/api/model_accuracy?range=${range}`);
-    const data = await res.json();
+    const res      = await fetch(`/api/model_accuracy?range=${range}`);
+    const payload  = await res.json();
+    const accuracy = payload.accuracy || [];
 
-    const accuracy = data.accuracy || [];
-    if (!accuracy.length) return;
-
-    const labels    = accuracy.map(r => formatTimestamp(r.timestamp));
-    const actual    = accuracy.map(r => r.actual_temp_f);
-    const predicted = accuracy.map(r => r.predicted_temp_f);
-
-    // Stats
     const errors = accuracy.map(r => r.error_f).filter(v => v != null);
     if (errors.length) {
-      setText("diag-rmse", Math.sqrt(errors.reduce((s,e) => s+e*e, 0)/errors.length).toFixed(2) + "°F");
-      setText("diag-bias", (errors.reduce((s,e) => s+e, 0)/errors.length).toFixed(2) + "°F");
+      setText("diag-rmse", Math.sqrt(errors.reduce((s, e) => s + e * e, 0) / errors.length).toFixed(2) + "°F");
+      setText("diag-bias", (errors.reduce((s, e) => s + e, 0) / errors.length).toFixed(2) + "°F");
       setText("diag-n",    errors.length);
     }
 
     const ctx = document.getElementById("diag-chart");
-    if (!ctx) return;
-    if (_diagChart) _diagChart.destroy();
-    _diagChart = new Chart(ctx, {
+    if (!ctx || !accuracy.length) return;
+    if (_diagTempChart) _diagTempChart.destroy();
+    _diagTempChart = new Chart(ctx, {
       type: "line",
       data: {
-        labels,
         datasets: [
-          { label: "Actual °F",    data: actual,    borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0.3 },
-          { label: "Predicted °F", data: predicted, borderColor: "#ef5350", borderWidth: 2, pointRadius: 0, tension: 0.3, borderDash: [6,3] },
+          { label: "Actual °F",    data: accuracy.map(r => ({ x: new Date(r.timestamp), y: r.actual_temp_f    })), borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
+          { label: "Predicted °F", data: accuracy.map(r => ({ x: new Date(r.timestamp), y: r.predicted_temp_f })), borderColor: "#ef5350", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false, borderDash: [6, 3] },
         ],
       },
-      options: chartOptions("°F"),
+      options: chartOptions(range, "°F"),
     });
-  } catch (e) {
-    console.warn("Diagnostic data fetch failed:", e);
-  }
+  } catch (e) { console.warn("Diag temp chart failed:", e); }
+}
+
+async function loadSolarChart(range) {
+  try {
+    const res    = await fetch(`/api/solar_forecast?range=${range}`);
+    const data   = await res.json();
+    const actual   = (data.actual   || []).map(r => ({ x: new Date(r.timestamp), y: r.value }));
+    const forecast = (data.forecast || []).map(r => ({ x: new Date(r.timestamp), y: r.value }));
+
+    const ctx = document.getElementById("solar-chart");
+    if (!ctx) return;
+    if (_solarChart) _solarChart.destroy();
+    _solarChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        datasets: [
+          { label: "Actual W/m²",   data: actual,   borderColor: "#f0c040", borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
+          { label: "Forecast W/m²", data: forecast, borderColor: "#888",    borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false, borderDash: [6, 3] },
+        ],
+      },
+      options: chartOptions(range, "W/m²"),
+    });
+  } catch (e) { console.warn("Solar chart failed:", e); }
+}
+
+async function loadTimelineChart(range) {
+  try {
+    const res  = await fetch(`/api/actuator_timeline?range=${range}`);
+    const data = await res.json();
+
+    const datasets = ACTUATOR_ORDER.map(name => ({
+      label:           name,
+      data:            (data[name] || []).map(p => ({ x: [new Date(p.start), new Date(p.end)], y: name })),
+      backgroundColor: ACTUATOR_COLORS[name] || "#888",
+      borderWidth:     0,
+      borderRadius:    2,
+      barThickness:    14,
+    }));
+
+    const ctx = document.getElementById("timeline-chart");
+    if (!ctx) return;
+    if (_timelineChart) _timelineChart.destroy();
+    const ts = timeScaleConfig(range);
+    _timelineChart = new Chart(ctx, {
+      type: "bar",
+      data: { datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        indexAxis: "y",
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const d = ctx.raw;
+                if (d && d.x && Array.isArray(d.x)) {
+                  return ` ${fmtShortTime(d.x[0])} – ${fmtShortTime(d.x[1])}`;
+                }
+                return "";
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            type: "time",
+            time: { unit: ts.unit, stepSize: ts.stepSize, displayFormats: ts.displayFormats },
+            ticks: { color: "#9a9a9a", maxRotation: 0, font: { size: 11 } },
+            grid:  { color: "rgba(255,255,255,0.06)" },
+          },
+          y: {
+            type: "category",
+            labels: ACTUATOR_ORDER,
+            ticks: { color: "#9a9a9a", font: { size: 11 } },
+            grid:  { color: "rgba(255,255,255,0.06)" },
+          },
+        },
+      },
+    });
+  } catch (e) { console.warn("Timeline chart failed:", e); }
+}
+
+async function loadHvacRuntimeChart(range) {
+  try {
+    const res  = await fetch(`/api/hvac_runtime?range=${range}`);
+    const data = await res.json();
+
+    const ctx = document.getElementById("hvac-runtime-chart");
+    if (!ctx || !data.length) return;
+    if (_hvacRuntimeChart) _hvacRuntimeChart.destroy();
+    _hvacRuntimeChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        datasets: [{
+          label: "HVAC hours",
+          data:  data.map(r => ({ x: new Date(r.day), y: r.hours })),
+          backgroundColor: "#f0a030",
+          borderWidth: 0,
+          borderRadius: 3,
+        }],
+      },
+      options: chartOptions(range, "hours"),
+    });
+  } catch (e) { console.warn("HVAC runtime chart failed:", e); }
 }
 
 // ---------------------------------------------------------------------------
-// Shared Chart.js defaults
+// Shared Chart.js options
 // ---------------------------------------------------------------------------
-function chartOptions(unit) {
+function timeScaleConfig(range) {
+  switch (range) {
+    case "1h":  return { unit: "minute", stepSize: 5,  displayFormats: { minute: "HH:mm" } };
+    case "24h": return { unit: "hour",   stepSize: 1,  displayFormats: { hour: "HH:mm",  day: "MM/dd" } };
+    case "7d":  return { unit: "day",    stepSize: 1,  displayFormats: { day: "MM/dd" } };
+    case "30d": return { unit: "day",    stepSize: 5,  displayFormats: { day: "MM/dd" } };
+    case "1y":  return { unit: "month",  stepSize: 1,  displayFormats: { month: "MMM"  } };
+    default:    return { unit: "hour",   stepSize: 1,  displayFormats: { hour: "HH:mm",  day: "MM/dd" } };
+  }
+}
+
+function chartOptions(range, yLabel) {
+  const ts = timeScaleConfig(range);
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -577,27 +801,24 @@ function chartOptions(unit) {
     interaction: { mode: "index", intersect: false },
     plugins: {
       legend: {
-        labels: { color: "#9a9a9a", font: { size: 11 }, boxWidth: 18 },
+        labels: { color: "#9a9a9a", font: { size: 11 }, usePointStyle: false, boxWidth: 18, boxHeight: 10 },
       },
       tooltip: {
-        backgroundColor: "#1e1e1e",
-        borderColor: "#4a4a4a",
-        borderWidth: 1,
-        titleColor: "#9a9a9a",
-        bodyColor: "#ffffff",
-        callbacks: {
-          label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) : "—"} ${unit}`,
-        },
+        backgroundColor: "#1e1e1e", borderColor: "#4a4a4a", borderWidth: 1,
+        titleColor: "#9a9a9a", bodyColor: "#ffffff",
       },
     },
     scales: {
       x: {
-        ticks: { color: "#9a9a9a", maxTicksLimit: 8, maxRotation: 0, font: { size: 11 } },
+        type: "time",
+        time: { unit: ts.unit, stepSize: ts.stepSize, displayFormats: ts.displayFormats },
+        ticks: { color: "#9a9a9a", maxRotation: 0, font: { size: 11 } },
         grid:  { color: "rgba(255,255,255,0.06)" },
       },
       y: {
         ticks: { color: "#9a9a9a", font: { size: 11 } },
         grid:  { color: "rgba(255,255,255,0.06)" },
+        title: yLabel ? { display: true, text: yLabel, color: "#9a9a9a", font: { size: 11 } } : undefined,
       },
     },
   };
@@ -616,51 +837,33 @@ function setIcon(id, src) {
   if (el) el.src = src;
 }
 
-function fmtTemp(f) {
-  return Math.round(f) + "°F";
-}
+function fmtTemp(f) { return Math.round(f) + "°F"; }
+function celsiusToF(c) { return c * 9 / 5 + 32; }
+function avg(arr) { return arr.reduce((a, b) => a + b, 0) / arr.length; }
 
-function celsiusToF(c) {
-  return c * 9/5 + 32;
-}
-
-function avg(arr) {
-  return arr.reduce((a, b) => a + b, 0) / arr.length;
-}
-
-function formatTimestamp(ts) {
-  if (!ts) return "";
-  try {
-    const d = new Date(ts.endsWith("Z") ? ts : ts + "Z");
-    return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-  } catch { return ts; }
+function fmtShortTime(d) {
+  if (!(d instanceof Date)) d = new Date(d);
+  return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function formatRelTime(ts) {
   try {
-    const d = new Date(ts.endsWith("Z") ? ts : ts + "Z");
+    const d    = new Date(ts);
     const mins = Math.round((Date.now() - d) / 60000);
-    if (mins < 2) return "just now";
+    if (mins < 2)  return "just now";
     if (mins < 60) return `${mins}m ago`;
-    return `${Math.round(mins/60)}h ago`;
+    return `${Math.round(mins / 60)}h ago`;
   } catch { return ts; }
 }
 
-function updateDateLabel(id, range, offset, data) {
+function updateDateLabel(id, data) {
   const el = document.getElementById(id);
   if (!el) return;
   if (!data || !data.length) { el.textContent = "no data"; return; }
   try {
-    const first = new Date(data[0].timestamp + (data[0].timestamp.endsWith("Z") ? "" : "Z"));
-    const last  = new Date(data[data.length-1].timestamp + (data[data.length-1].timestamp.endsWith("Z") ? "" : "Z"));
-    const fmt = { month: "2-digit", day: "2-digit", year: "2-digit" };
-    if (range === "1h" || range === "24h") {
-      // show time
-      el.textContent = first.toLocaleDateString("en-US", fmt) + " – " + last.toLocaleDateString("en-US", fmt);
-    } else {
-      el.textContent = first.toLocaleDateString("en-US", fmt) + " – " + last.toLocaleDateString("en-US", fmt);
-    }
-  } catch {
-    el.textContent = "—";
-  }
+    const first = new Date(data[0].timestamp);
+    const last  = new Date(data[data.length - 1].timestamp);
+    const fmt   = { month: "2-digit", day: "2-digit" };
+    el.textContent = first.toLocaleDateString("en-US", fmt) + " – " + last.toLocaleDateString("en-US", fmt);
+  } catch { el.textContent = "—"; }
 }
