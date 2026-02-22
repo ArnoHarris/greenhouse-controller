@@ -14,6 +14,7 @@ import config
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-key-change-in-production")
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # Disable static file caching during development
 
 # DB path is relative to project root
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), config.DB_PATH)
