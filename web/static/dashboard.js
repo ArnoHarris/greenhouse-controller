@@ -238,6 +238,7 @@ async function handleOverrideClick(e) {
           _fanOverrideExpires = null;
           setText("fan-timer", "5:00 min");
         }
+        fetchState();
       }
     } catch (err) { console.error("Cancel override failed:", err); }
   } else {
@@ -256,6 +257,7 @@ async function handleOverrideClick(e) {
         if (actuator === "fan" && data.expires_at) {
           _fanOverrideExpires = new Date(data.expires_at);
         }
+        fetchState();
       }
     } catch (err) { console.error("Set override failed:", err); }
   }
@@ -307,10 +309,9 @@ function openTape(which, anchorEl) {
   container.style.transition = "";
   container.style.transform  = `translateY(${_tapeCurrentOffset}px)`;
 
-  // Position overlay centered over HVAC center button
+  // Position overlay centered over the button that was pressed
   const tape    = document.getElementById("setpoint-tape");
-  const hvacBtn = document.getElementById("btn-hvac");
-  const btnRect = (hvacBtn || anchorEl).getBoundingClientRect();
+  const btnRect = anchorEl.getBoundingClientRect();
   const tLeft   = Math.max(0, Math.min(btnRect.left + btnRect.width / 2 - 50, window.innerWidth - 116));
   const tTop    = Math.max(0, btnRect.top + btnRect.height / 2 - 130);
   tape.className   = "tape-overlay tape-" + which;

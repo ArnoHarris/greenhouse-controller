@@ -251,7 +251,7 @@ def api_model_accuracy():
             f"""SELECT timestamp, predicted_temp_f, actual_temp_f, error_f
                 FROM model_accuracy
                 WHERE timestamp > datetime('now', '{interval}')
-                ORDER BY timestamp ASC"""
+                ORDER BY rowid ASC"""
         ).fetchall()
 
         # Also fetch model predictions for overlay
@@ -259,7 +259,7 @@ def api_model_accuracy():
             f"""SELECT timestamp, predicted_trajectory
                 FROM model_log
                 WHERE timestamp > datetime('now', '{interval}')
-                ORDER BY timestamp ASC"""
+                ORDER BY rowid ASC"""
         ).fetchall()
         conn.close()
 
@@ -286,7 +286,7 @@ def api_power():
                        current_a_a, voltage_a_v, energy_a_kwh, energy_b_kwh, energy_total_kwh
                 FROM power_log
                 WHERE timestamp > datetime('now', '{interval}')
-                ORDER BY timestamp ASC"""
+                ORDER BY rowid ASC"""
         ).fetchall()
         conn.close()
         return jsonify([dict(r) for r in rows])
@@ -310,14 +310,14 @@ def api_solar_forecast():
                 FROM sensor_log
                 WHERE timestamp > datetime('now', '{interval}')
                   AND solar_irradiance_wm2 IS NOT NULL
-                ORDER BY timestamp ASC"""
+                ORDER BY rowid ASC"""
         ).fetchall()
         # Forecast solar from forecast_log
         forecasts = conn.execute(
             f"""SELECT timestamp, corrected_forecast
                 FROM forecast_log
                 WHERE timestamp > datetime('now', '{interval}')
-                ORDER BY timestamp ASC"""
+                ORDER BY rowid ASC"""
         ).fetchall()
         conn.close()
 
@@ -362,7 +362,7 @@ def api_actuator_timeline():
                     WHERE timestamp > datetime('now', '{interval}')
                 ) p ON substr(s.timestamp,1,16) = substr(p.p_ts,1,16)
                 WHERE s.timestamp > datetime('now', '{interval}')
-                ORDER BY s.timestamp ASC"""
+                ORDER BY s.rowid ASC"""
         ).fetchall()
         conn.close()
         return jsonify(_compute_actuator_timeline([dict(r) for r in rows]))
