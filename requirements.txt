@@ -2,4 +2,3 @@ requests
 python-dotenv
 paho-mqtt
 motionblinds
-python-kasa
