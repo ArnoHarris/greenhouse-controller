@@ -163,32 +163,34 @@ def api_state():
         }
 
         if sensor:
+            s = dict(sensor)
             state.update({
-                "indoor_temp": sensor["indoor_temp_f"],
-                "indoor_humidity": sensor["indoor_humidity"],
-                "outdoor_temp": sensor["outdoor_temp_f"],
-                "outdoor_humidity": sensor["outdoor_humidity"],
-                "solar_irradiance": sensor["solar_irradiance_wm2"],
-                "wind_speed": sensor["wind_speed_mph"],
-                "shades_east": sensor["shades_east"],
-                "shades_west": sensor["shades_west"],
-                "fan_on": bool(sensor["fan_on"]),
-                "circ_fans_on": bool(sensor["circ_fans_on"]),
-                "hvac_mode": sensor["hvac_mode"],
-                "hvac_setpoint": sensor["hvac_setpoint"],
-                "timestamp": sensor["timestamp"],
+                "indoor_temp": s.get("indoor_temp_f"),
+                "indoor_humidity": s.get("indoor_humidity"),
+                "outdoor_temp": s.get("outdoor_temp_f"),
+                "outdoor_humidity": s.get("outdoor_humidity"),
+                "solar_irradiance": s.get("solar_irradiance_wm2"),
+                "wind_speed": s.get("wind_speed_mph"),
+                "shades_east": s.get("shades_east"),
+                "shades_west": s.get("shades_west"),
+                "fan_on": bool(s.get("fan_on")),
+                "circ_fans_on": bool(s.get("circ_fans_on")),
+                "hvac_mode": s.get("hvac_mode"),
+                "hvac_setpoint": s.get("hvac_setpoint"),
+                "timestamp": s.get("timestamp"),
             })
 
         if power:
-            va = power["voltage_a_v"] or 0
-            vb = power["voltage_b_v"] or 0
+            p = dict(power)
+            va = p.get("voltage_a_v") or 0
+            vb = p.get("voltage_b_v") or 0
             state.update({
-                "power_kw": power["power_total_kw"],
-                "power_a_kw": power["power_a_kw"],
-                "power_b_kw": power["power_b_kw"],
-                "current_a": power["current_a_a"],
+                "power_kw": p.get("power_total_kw"),
+                "power_a_kw": p.get("power_a_kw"),
+                "power_b_kw": p.get("power_b_kw"),
+                "current_a": p.get("current_a_a"),
                 "voltage_v": va + vb,          # sum of both legs
-                "freq_hz": power["freq_hz"],
+                "freq_hz": p.get("freq_hz"),
             })
 
         if forecast_row:
