@@ -34,6 +34,13 @@ body {
   overflow: hidden;
 }
 
+/* Scrollbar styling */
+::-webkit-scrollbar              { width: 8px; height: 8px; }
+::-webkit-scrollbar-track        { background: var(--bg); }
+::-webkit-scrollbar-thumb        { background: var(--panel-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover  { background: var(--btn-inactive); }
+* { scrollbar-color: var(--panel-border) var(--bg); scrollbar-width: thin; }
+
 /* ============================================================
    Nav bar
    ============================================================ */
@@ -45,7 +52,8 @@ body {
   background: var(--header);
   padding: 0 20px 0 0;
   flex-shrink: 0;
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 10;
   border-bottom: 2px solid rgba(255,255,255,0.7);
 }
