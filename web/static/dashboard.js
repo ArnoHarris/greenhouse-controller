@@ -148,10 +148,16 @@ function applyState(s) {
     window._settings = s.settings;
   }
 
-  // Fan override timer
+  // Fan override timer — only count down when override is for ON state
   const fanOv = overrides["fan"];
   if (fanOv) {
-    _fanOverrideExpires = new Date(fanOv.expires_at);
+    const fanCmd = tryParseCmd(fanOv.command);
+    if (fanCmd.on) {
+      _fanOverrideExpires = new Date(fanOv.expires_at);
+    } else {
+      _fanOverrideExpires = null;
+      setText("fan-timer", "5:00 min");
+    }
   } else {
     _fanOverrideExpires = null;
     setText("fan-timer", "5:00 min");
@@ -221,46 +227,39 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function handleOverrideClick(e) {
-  const btn      = e.currentTarget;
-  const actuator = btn.dataset.actuator;
-  const isActive = btn.classList.contains("active");
-  const duration = parseInt(btn.dataset.duration || "120");
+  const btn       = e.currentTarget;
+  const actuator  = btn.dataset.actuator;
+  const isActive  = btn.classList.contains("active");
+  const duration  = parseInt(btn.dataset.duration || "120");
+  // Always POST a new override (on or off). The backend's "latest wins" logic
+  // cancels any previous override for this actuator and creates a new one.
+  // This prevents fetchState from re-activating the button via stale device state.
+  const cmdJson   = isActive ? (btn.dataset.cmdOff || "{}") : (btn.dataset.cmdOn || "{}");
+  const command   = tryParseCmd(cmdJson);
+  const newActive = !isActive;
 
-  if (isActive) {
-    try {
-      const res  = await fetch(`/api/override/${actuator}`, { method: "DELETE" });
-      const data = await res.json();
-      if (data.ok) {
-        btn.classList.remove("active");
-        const dot = btn.querySelector(".btn-dot");
-        if (dot) dot.style.background = "var(--dot-off)";
-        if (actuator === "fan") {
+  try {
+    const res  = await fetch("/api/override", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actuator, command, duration_minutes: duration }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      btn.classList.toggle("active", newActive);
+      const dot = btn.querySelector(".btn-dot");
+      if (dot) dot.style.background = newActive ? "var(--dot-on)" : "var(--dot-off)";
+      if (actuator === "fan") {
+        if (newActive && data.expires_at) {
+          _fanOverrideExpires = new Date(data.expires_at);
+        } else {
           _fanOverrideExpires = null;
           setText("fan-timer", "5:00 min");
         }
-        fetchState();
       }
-    } catch (err) { console.error("Cancel override failed:", err); }
-  } else {
-    const command = tryParseCmd(btn.dataset.cmdOn || "{}");
-    try {
-      const res  = await fetch("/api/override", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actuator, command, duration_minutes: duration }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        btn.classList.add("active");
-        const dot = btn.querySelector(".btn-dot");
-        if (dot) dot.style.background = "var(--dot-on)";
-        if (actuator === "fan" && data.expires_at) {
-          _fanOverrideExpires = new Date(data.expires_at);
-        }
-        fetchState();
-      }
-    } catch (err) { console.error("Set override failed:", err); }
-  }
+      fetchState();
+    }
+  } catch (err) { console.error("Override toggle failed:", err); }
 }
 
 // ---------------------------------------------------------------------------

@@ -517,6 +517,7 @@ body {
   .greenhouse-wrap { min-height: 260px; }
   .tab { font-size: 18px; padding: 0 14px; }
   .tab-diag { display: none; }
+  .nav-datetime { display: none; }
 
   /* Weather row */
   .weather-row { padding: 0 3%; }
