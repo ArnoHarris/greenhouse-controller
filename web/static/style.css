@@ -47,7 +47,7 @@ body {
   flex-shrink: 0;
   position: relative;
   z-index: 10;
-  border-bottom: 1px solid var(--panel-border);
+  border-bottom: 2px solid rgba(255,255,255,0.3);
 }
 
 .nav-left { display: flex; align-items: stretch; }
@@ -149,11 +149,13 @@ body {
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  padding: 0 28px;
+  padding: 0 56px;
 }
 .weather-cell { display: flex; align-items: center; gap: 10px; }
+.weather-cell.right { flex-direction: row-reverse; }
 .weather-icon { width: 56px; height: 56px; }
 .weather-vals { display: flex; flex-direction: column; gap: 4px; }
+.weather-cell.right .weather-vals { align-items: flex-end; }
 .weather-temp { font-size: 28px; font-weight: 600; }
 .weather-humidity { font-size: 22px; color: var(--text-muted); }
 .drop-icon { margin-left: 2px; font-size: 16px; }
