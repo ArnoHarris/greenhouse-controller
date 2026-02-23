@@ -24,6 +24,7 @@ def fetch_forecast():
             "direct_radiation",
             "diffuse_radiation",
             "wind_speed_10m",
+            "weather_code",
         ]),
         "temperature_unit": "fahrenheit",
         "wind_speed_unit": "mph",
@@ -49,6 +50,7 @@ def fetch_forecast():
         "humidity": hourly["relative_humidity_2m"],
         "solar_irradiance_wm2": ghi,
         "wind_speed_mph": hourly["wind_speed_10m"],
+        "weather_code": hourly.get("weather_code", []),
     }
 
 
@@ -82,6 +84,7 @@ def apply_bias_correction(forecast, station_reading):
         "humidity": list(forecast["humidity"]),
         "solar_irradiance_wm2": list(forecast["solar_irradiance_wm2"]),
         "wind_speed_mph": list(forecast["wind_speed_mph"]),
+        "weather_code": list(forecast.get("weather_code", [])),
     }
 
     # Compute deltas: actual - forecast at current hour

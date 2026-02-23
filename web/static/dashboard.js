@@ -102,7 +102,7 @@ function applyState(s) {
   // Forecast icons + arrow temp
   if (s.forecast) {
     const fc = s.forecast;
-    if (fc.forecast_2h_temp != null) setText("forecast-temp", fmtTemp(celsiusToF(fc.forecast_2h_temp)));
+    if (fc.forecast_2h_temp != null) setText("forecast-temp", fmtTemp(fc.forecast_2h_temp));
     const day = isDaytime();
     setIcon("icon-current",  wmoIcon(fc.current_code,     day));
     setIcon("icon-forecast", wmoIcon(fc.forecast_2h_code, day));

@@ -210,9 +210,9 @@ def api_state():
 def _extract_forecast_summary(fc):
     """Pull current + 2hr conditions from corrected forecast dict."""
     try:
-        times = fc.get("hourly", {}).get("time", [])
-        temps = fc.get("hourly", {}).get("temperature_2m", [])
-        codes = fc.get("hourly", {}).get("weathercode", [])
+        times = fc.get("time", [])
+        temps = fc.get("temperature_f", [])
+        codes = fc.get("weather_code", [])
         now = datetime.now(timezone.utc)
 
         def find_idx(offset_h):
