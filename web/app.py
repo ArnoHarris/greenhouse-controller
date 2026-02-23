@@ -246,29 +246,45 @@ def _extract_forecast_summary(fc):
 # API: historical sensor data
 # ---------------------------------------------------------------------------
 
-RANGE_MAP = {
-    "1h":  "-1 hours",
-    "24h": "-24 hours",
-    "7d":  "-7 days",
-    "30d": "-30 days",
-    "1y":  "-1 year",
+RANGE_SECONDS = {
+    "1h":  3600,
+    "24h": 86400,
+    "7d":  7 * 86400,
+    "30d": 30 * 86400,
+    "1y":  365 * 86400,
 }
+
+
+def time_window(range_param, offset=0):
+    """Return (start_str, end_str) for SQLite BETWEEN clause.
+
+    offset=0  → current period (now-duration to now)
+    offset=-1 → previous period, etc.
+    """
+    secs = RANGE_SECONDS.get(range_param, 86400)
+    now  = datetime.now(timezone.utc)
+    end  = now + timedelta(seconds=offset * secs)
+    start = end - timedelta(seconds=secs)
+    fmt  = "%Y-%m-%d %H:%M:%S"
+    return start.strftime(fmt), end.strftime(fmt)
 
 
 @app.route("/api/history")
 def api_history():
     range_param = request.args.get("range", "24h")
-    interval = RANGE_MAP.get(range_param, "-24 hours")
+    offset      = int(request.args.get("offset", 0))
+    start, end  = time_window(range_param, offset)
     try:
         conn = get_db()
         rows = conn.execute(
-            f"""SELECT timestamp, indoor_temp_f, outdoor_temp_f,
-                       indoor_humidity, outdoor_humidity,
-                       solar_irradiance_wm2, shades_east, shades_west,
-                       fan_on, circ_fans_on, hvac_mode
-                FROM sensor_log
-                WHERE datetime(timestamp) > datetime('now', '{interval}')
-                ORDER BY rowid ASC"""
+            """SELECT timestamp, indoor_temp_f, outdoor_temp_f,
+                      indoor_humidity, outdoor_humidity,
+                      solar_irradiance_wm2, shades_east, shades_west,
+                      fan_on, circ_fans_on, hvac_mode
+               FROM sensor_log
+               WHERE datetime(timestamp) BETWEEN ? AND ?
+               ORDER BY rowid ASC""",
+            (start, end),
         ).fetchall()
         conn.close()
         return jsonify([dict(r) for r in rows])
@@ -283,22 +299,24 @@ def api_history():
 @app.route("/api/model_accuracy")
 def api_model_accuracy():
     range_param = request.args.get("range", "24h")
-    interval = RANGE_MAP.get(range_param, "-24 hours")
+    offset      = int(request.args.get("offset", 0))
+    start, end  = time_window(range_param, offset)
     try:
         conn = get_db()
         rows = conn.execute(
-            f"""SELECT timestamp, predicted_temp_f, actual_temp_f, error_f
-                FROM model_accuracy
-                WHERE datetime(timestamp) > datetime('now', '{interval}')
-                ORDER BY rowid ASC"""
+            """SELECT timestamp, predicted_temp_f, actual_temp_f, error_f
+               FROM model_accuracy
+               WHERE datetime(timestamp) BETWEEN ? AND ?
+               ORDER BY rowid ASC""",
+            (start, end),
         ).fetchall()
 
-        # Also fetch model predictions for overlay
         predictions = conn.execute(
-            f"""SELECT timestamp, predicted_trajectory
-                FROM model_log
-                WHERE datetime(timestamp) > datetime('now', '{interval}')
-                ORDER BY rowid ASC"""
+            """SELECT timestamp, predicted_trajectory
+               FROM model_log
+               WHERE datetime(timestamp) BETWEEN ? AND ?
+               ORDER BY rowid ASC""",
+            (start, end),
         ).fetchall()
         conn.close()
 
@@ -317,15 +335,17 @@ def api_model_accuracy():
 @app.route("/api/power")
 def api_power():
     range_param = request.args.get("range", "24h")
-    interval = RANGE_MAP.get(range_param, "-24 hours")
+    offset      = int(request.args.get("offset", 0))
+    start, end  = time_window(range_param, offset)
     try:
         conn = get_db()
         rows = conn.execute(
-            f"""SELECT timestamp, power_a_kw, power_b_kw, power_total_kw,
-                       current_a_a, voltage_a_v, energy_a_kwh, energy_b_kwh, energy_total_kwh
-                FROM power_log
-                WHERE datetime(timestamp) > datetime('now', '{interval}')
-                ORDER BY rowid ASC"""
+            """SELECT timestamp, power_a_kw, power_b_kw, power_total_kw,
+                      current_a_a, voltage_a_v, energy_a_kwh, energy_b_kwh, energy_total_kwh
+               FROM power_log
+               WHERE datetime(timestamp) BETWEEN ? AND ?
+               ORDER BY rowid ASC""",
+            (start, end),
         ).fetchall()
         conn.close()
         return jsonify([dict(r) for r in rows])
@@ -340,23 +360,24 @@ def api_power():
 @app.route("/api/solar_forecast")
 def api_solar_forecast():
     range_param = request.args.get("range", "24h")
-    interval = RANGE_MAP.get(range_param, "-24 hours")
+    offset      = int(request.args.get("offset", 0))
+    start, end  = time_window(range_param, offset)
     try:
         conn = get_db()
-        # Actual solar from sensor_log
         actual = conn.execute(
-            f"""SELECT timestamp, solar_irradiance_wm2
-                FROM sensor_log
-                WHERE datetime(timestamp) > datetime('now', '{interval}')
-                  AND solar_irradiance_wm2 IS NOT NULL
-                ORDER BY rowid ASC"""
+            """SELECT timestamp, solar_irradiance_wm2
+               FROM sensor_log
+               WHERE datetime(timestamp) BETWEEN ? AND ?
+                 AND solar_irradiance_wm2 IS NOT NULL
+               ORDER BY rowid ASC""",
+            (start, end),
         ).fetchall()
-        # Forecast solar from forecast_log
         forecasts = conn.execute(
-            f"""SELECT timestamp, corrected_forecast
-                FROM forecast_log
-                WHERE datetime(timestamp) > datetime('now', '{interval}')
-                ORDER BY rowid ASC"""
+            """SELECT timestamp, corrected_forecast
+               FROM forecast_log
+               WHERE datetime(timestamp) BETWEEN ? AND ?
+               ORDER BY rowid ASC""",
+            (start, end),
         ).fetchall()
         conn.close()
 
@@ -388,20 +409,22 @@ def api_solar_forecast():
 @app.route("/api/actuator_timeline")
 def api_actuator_timeline():
     range_param = request.args.get("range", "24h")
-    interval = RANGE_MAP.get(range_param, "-24 hours")
+    offset      = int(request.args.get("offset", 0))
+    start, end  = time_window(range_param, offset)
     try:
         conn = get_db()
         rows = conn.execute(
-            f"""SELECT timestamp, shades_east, shades_west, fan_on,
-                       circ_fans_on, hvac_mode, power_total_kw
-                FROM sensor_log s
-                LEFT JOIN (
-                    SELECT timestamp AS p_ts, power_total_kw
-                    FROM power_log
-                    WHERE datetime(timestamp) > datetime('now', '{interval}')
-                ) p ON substr(s.timestamp,1,16) = substr(p.p_ts,1,16)
-                WHERE datetime(s.timestamp) > datetime('now', '{interval}')
-                ORDER BY s.rowid ASC"""
+            """SELECT s.timestamp, shades_east, shades_west, fan_on,
+                      circ_fans_on, hvac_mode, p.power_total_kw
+               FROM sensor_log s
+               LEFT JOIN (
+                   SELECT timestamp AS p_ts, power_total_kw
+                   FROM power_log
+                   WHERE datetime(timestamp) BETWEEN ? AND ?
+               ) p ON substr(s.timestamp,1,16) = substr(p.p_ts,1,16)
+               WHERE datetime(s.timestamp) BETWEEN ? AND ?
+               ORDER BY s.rowid ASC""",
+            (start, end, start, end),
         ).fetchall()
         conn.close()
         return jsonify(_compute_actuator_timeline([dict(r) for r in rows]))
@@ -450,16 +473,18 @@ def _compute_actuator_timeline(rows):
 @app.route("/api/hvac_runtime")
 def api_hvac_runtime():
     range_param = request.args.get("range", "7d")
-    interval = RANGE_MAP.get(range_param, "-7 days")
+    offset      = int(request.args.get("offset", 0))
+    start, end  = time_window(range_param, offset)
     try:
         conn = get_db()
         rows = conn.execute(
-            f"""SELECT date(timestamp) as day,
-                       SUM(CASE WHEN hvac_mode != 'off' AND hvac_mode IS NOT NULL THEN 5 ELSE 0 END) / 60.0 as hours
-                FROM sensor_log
-                WHERE datetime(timestamp) > datetime('now', '{interval}')
-                GROUP BY day
-                ORDER BY day ASC"""
+            """SELECT date(timestamp) as day,
+                      SUM(CASE WHEN hvac_mode != 'off' AND hvac_mode IS NOT NULL THEN 5 ELSE 0 END) / 60.0 as hours
+               FROM sensor_log
+               WHERE datetime(timestamp) BETWEEN ? AND ?
+               GROUP BY day
+               ORDER BY day ASC""",
+            (start, end),
         ).fetchall()
         conn.close()
         return jsonify([dict(r) for r in rows])

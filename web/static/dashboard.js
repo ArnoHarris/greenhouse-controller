@@ -501,7 +501,7 @@ function initHistoryPage() {
 async function loadTempChart() {
   const range = document.getElementById("temp-range")?.value || "24h";
   const data  = await fetchHistory(range, _tempOffset);
-  updateDateLabel("temp-date-label", data);
+  updateDateLabel("temp-date-label", range, _tempOffset);
   if (!data.length) return;
 
   const indoor  = data.map(r => ({ x: new Date(r.timestamp), y: r.indoor_temp_f  }));
@@ -538,7 +538,7 @@ async function loadTempChart() {
 async function loadHumChart() {
   const range = document.getElementById("hum-range")?.value || "24h";
   const data  = await fetchHistory(range, _humOffset);
-  updateDateLabel("hum-date-label", data);
+  updateDateLabel("hum-date-label", range, _humOffset);
   if (!data.length) return;
 
   const indoor  = data.map(r => ({ x: new Date(r.timestamp), y: r.indoor_humidity  }));
@@ -599,7 +599,7 @@ function initEnergyPage() {
 async function loadPowerChart() {
   const range = document.getElementById("power-range")?.value || "24h";
   const data  = await fetchPower(range, _powerOffset);
-  updateDateLabel("power-date-label", data);
+  updateDateLabel("power-date-label", range, _powerOffset);
   if (!data.length) return;
 
   const phaseA = data.map(r => ({ x: new Date(r.timestamp), y: r.power_a_kw     }));
@@ -640,6 +640,7 @@ let _timelineChart    = null;
 let _hvacRuntimeChart = null;
 let _diagPowerChart   = null;
 let _diagPowerOffset  = 0;
+let _diagOffset       = 0;
 
 const ACTUATOR_ORDER  = ["East Shades", "West Shades", "Exhaust Fans", "Circ Fans", "HVAC"];
 const ACTUATOR_COLORS = {
@@ -658,15 +659,18 @@ function initDiagnosticPage() {
 
 function loadDiagCharts() {
   const range = document.getElementById("diag-range")?.value || "24h";
+  updateDateLabel("diag-date-label", range, _diagOffset);
   loadDiagTempChart(range);
   loadSolarChart(range);
   loadTimelineChart(range);
   loadHvacRuntimeChart(range);
 }
 
+function shiftDiagRange(dir) { _diagOffset += dir; loadDiagCharts(); }
+
 async function loadDiagTempChart(range) {
   try {
-    const res      = await fetch(`/api/model_accuracy?range=${range}`);
+    const res      = await fetch(`/api/model_accuracy?range=${range}&offset=${_diagOffset}`);
     const payload  = await res.json();
     const accuracy = payload.accuracy || [];
 
@@ -688,14 +692,14 @@ async function loadDiagTempChart(range) {
           { label: "Predicted °F", data: accuracy.map(r => ({ x: new Date(r.timestamp), y: r.predicted_temp_f })), borderColor: "#ef5350", borderWidth: 2, pointRadius: 0, tension: 0, fill: false, borderDash: [6, 3] },
         ],
       },
-      options: chartOptions(range, "°F"),
+      options: chartOptions(range, "°F", _diagOffset),
     });
   } catch (e) { console.warn("Diag temp chart failed:", e); }
 }
 
 async function loadSolarChart(range) {
   try {
-    const res    = await fetch(`/api/solar_forecast?range=${range}`);
+    const res    = await fetch(`/api/solar_forecast?range=${range}&offset=${_diagOffset}`);
     const data   = await res.json();
     const actual   = (data.actual   || []).map(r => ({ x: new Date(r.timestamp), y: r.solar_irradiance_wm2 }));
     const forecast = (data.forecast || []).map(r => ({ x: new Date(r.timestamp), y: r.solar_wm2 }));
@@ -711,14 +715,14 @@ async function loadSolarChart(range) {
           { label: "Forecast W/m²", data: forecast, borderColor: "#888",    borderWidth: 2, pointRadius: 0, tension: 0, fill: false, borderDash: [6, 3] },
         ],
       },
-      options: chartOptions(range, "W/m²"),
+      options: chartOptions(range, "W/m²", _diagOffset),
     });
   } catch (e) { console.warn("Solar chart failed:", e); }
 }
 
 async function loadTimelineChart(range) {
   try {
-    const res  = await fetch(`/api/actuator_timeline?range=${range}`);
+    const res  = await fetch(`/api/actuator_timeline?range=${range}&offset=${_diagOffset}`);
     const data = await res.json();
 
     const datasets = ACTUATOR_ORDER.map(name => ({
@@ -734,7 +738,7 @@ async function loadTimelineChart(range) {
     if (!ctx) return;
     if (_timelineChart) _timelineChart.destroy();
     const ts = timeScaleConfig(range);
-    const { min: tlMin, max: tlMax } = rangeWindow(range);
+    const { min: tlMin, max: tlMax } = rangeWindow(range, _diagOffset);
     _timelineChart = new Chart(ctx, {
       type: "bar",
       data: { datasets },
@@ -778,7 +782,7 @@ async function loadTimelineChart(range) {
 
 async function loadHvacRuntimeChart(range) {
   try {
-    const res  = await fetch(`/api/hvac_runtime?range=${range}`);
+    const res  = await fetch(`/api/hvac_runtime?range=${range}&offset=${_diagOffset}`);
     const data = await res.json();
 
     const ctx = document.getElementById("hvac-runtime-chart");
@@ -795,7 +799,7 @@ async function loadHvacRuntimeChart(range) {
           borderRadius: 3,
         }],
       },
-      options: chartOptions(range, "hours"),
+      options: chartOptions(range, "hours", _diagOffset),
     });
   } catch (e) { console.warn("HVAC runtime chart failed:", e); }
 }
@@ -803,7 +807,7 @@ async function loadHvacRuntimeChart(range) {
 async function loadDiagPowerChart() {
   const range = document.getElementById("diag-power-range")?.value || "24h";
   const data  = await fetchPower(range, _diagPowerOffset);
-  updateDateLabel("diag-power-date-label", data);
+  updateDateLabel("diag-power-date-label", range, _diagPowerOffset);
   if (!data.length) return;
 
   const phaseA = data.map(r => ({ x: new Date(r.timestamp), y: r.power_a_kw     }));
@@ -937,14 +941,10 @@ function formatRelTime(ts) {
   } catch { return ts; }
 }
 
-function updateDateLabel(id, data) {
+function updateDateLabel(id, range, offset = 0) {
   const el = document.getElementById(id);
   if (!el) return;
-  if (!data || !data.length) { el.textContent = "no data"; return; }
-  try {
-    const first = new Date(data[0].timestamp);
-    const last  = new Date(data[data.length - 1].timestamp);
-    const fmt   = { month: "2-digit", day: "2-digit" };
-    el.textContent = first.toLocaleDateString("en-US", fmt) + " – " + last.toLocaleDateString("en-US", fmt);
-  } catch { el.textContent = "—"; }
+  const { min, max } = rangeWindow(range, offset);
+  const fmt = { month: "2-digit", day: "2-digit" };
+  el.textContent = min.toLocaleDateString("en-US", fmt) + " – " + max.toLocaleDateString("en-US", fmt);
 }

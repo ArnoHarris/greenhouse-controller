@@ -7,12 +7,18 @@
   <div class="diag-header">
     <div class="range-select-wrap" style="max-width:220px">
       <span class="range-icon">🕐</span>
-      <select id="diag-range" class="range-select" onchange="loadDiagCharts()">
+      <select id="diag-range" class="range-select" onchange="_diagOffset=0; loadDiagCharts()">
+        <option value="1h">Last 1 hour</option>
         <option value="24h" selected>Last 24 hours</option>
         <option value="7d">Last 7 days</option>
         <option value="30d">Last 30 days</option>
       </select>
       <span class="range-arrow">▼</span>
+    </div>
+    <div class="date-nav">
+      <button class="date-nav-btn" onclick="shiftDiagRange(-1)">‹</button>
+      <span class="date-nav-label" id="diag-date-label">—</span>
+      <button class="date-nav-btn" onclick="shiftDiagRange(+1)">›</button>
     </div>
     <div class="diag-stats-inline">
       <span class="diag-stat">Model RMSE: <strong id="diag-rmse">—</strong></span>
