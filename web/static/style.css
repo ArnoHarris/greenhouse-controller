@@ -61,18 +61,18 @@ body {
   padding: 0 22px;
   display: flex;
   align-items: center;
-  border: 1px solid rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.3);
   border-bottom: none;
   border-radius: 6px 6px 0 0;
-  margin-bottom: -1px;
+  margin-bottom: -2px;
   transition: color 0.15s;
   white-space: nowrap;
 }
-.tab:hover { color: var(--text); border-color: rgba(255,255,255,0.35); }
+.tab:hover { color: var(--text); border-color: rgba(255,255,255,0.5); }
 .tab.active {
   color: var(--text);
   background: var(--bg);
-  border-color: rgba(255,255,255,0.5);
+  border-color: rgba(255,255,255,0.7);
   border-bottom-color: var(--bg);
 }
 
@@ -149,7 +149,7 @@ body {
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  padding: 0;
+  padding: 0 28px;
 }
 .weather-cell { display: flex; align-items: center; gap: 10px; }
 .weather-icon { width: 56px; height: 56px; }
