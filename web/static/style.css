@@ -47,7 +47,7 @@ body {
   flex-shrink: 0;
   position: relative;
   z-index: 10;
-  border-bottom: 2px solid rgba(255,255,255,0.3);
+  border-bottom: 2px solid rgba(255,255,255,0.7);
 }
 
 .nav-left { display: flex; align-items: stretch; }
@@ -152,7 +152,6 @@ body {
   padding: 0 56px;
 }
 .weather-cell { display: flex; align-items: center; gap: 10px; }
-.weather-cell.right { flex-direction: row-reverse; }
 .weather-icon { width: 56px; height: 56px; }
 .weather-vals { display: flex; flex-direction: column; gap: 4px; }
 .weather-cell.right .weather-vals { align-items: flex-end; }
