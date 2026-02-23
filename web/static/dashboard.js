@@ -356,6 +356,17 @@ async function commitTapeValue(val) {
   const key   = which === "heat" ? "hvac_heat_setpoint" : "hvac_cool_setpoint";
   const id    = which === "heat" ? "heat-setpoint"      : "cool-setpoint";
 
+  // Enforce 10° minimum gap between heat and cool setpoints
+  const s = window._settings || {};
+  if (which === "heat") {
+    const cool = parseInt(s.hvac_cool_setpoint || 80);
+    val = Math.min(val, cool - 10);
+  } else {
+    const heat = parseInt(s.hvac_heat_setpoint || 60);
+    val = Math.max(val, heat + 10);
+  }
+  val = Math.max(TAPE_MIN, Math.min(TAPE_MAX, val));
+
   setText(id, val + "°");
 
   // Snap with transition
