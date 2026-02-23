@@ -264,7 +264,7 @@ def api_history():
                        solar_irradiance_wm2, shades_east, shades_west,
                        fan_on, circ_fans_on, hvac_mode
                 FROM sensor_log
-                WHERE timestamp > datetime('now', '{interval}')
+                WHERE datetime(timestamp) > datetime('now', '{interval}')
                 ORDER BY rowid ASC"""
         ).fetchall()
         conn.close()
@@ -286,7 +286,7 @@ def api_model_accuracy():
         rows = conn.execute(
             f"""SELECT timestamp, predicted_temp_f, actual_temp_f, error_f
                 FROM model_accuracy
-                WHERE timestamp > datetime('now', '{interval}')
+                WHERE datetime(timestamp) > datetime('now', '{interval}')
                 ORDER BY rowid ASC"""
         ).fetchall()
 
@@ -294,7 +294,7 @@ def api_model_accuracy():
         predictions = conn.execute(
             f"""SELECT timestamp, predicted_trajectory
                 FROM model_log
-                WHERE timestamp > datetime('now', '{interval}')
+                WHERE datetime(timestamp) > datetime('now', '{interval}')
                 ORDER BY rowid ASC"""
         ).fetchall()
         conn.close()
@@ -321,7 +321,7 @@ def api_power():
             f"""SELECT timestamp, power_a_kw, power_b_kw, power_total_kw,
                        current_a_a, voltage_a_v, energy_a_kwh, energy_b_kwh, energy_total_kwh
                 FROM power_log
-                WHERE timestamp > datetime('now', '{interval}')
+                WHERE datetime(timestamp) > datetime('now', '{interval}')
                 ORDER BY rowid ASC"""
         ).fetchall()
         conn.close()
@@ -344,7 +344,7 @@ def api_solar_forecast():
         actual = conn.execute(
             f"""SELECT timestamp, solar_irradiance_wm2
                 FROM sensor_log
-                WHERE timestamp > datetime('now', '{interval}')
+                WHERE datetime(timestamp) > datetime('now', '{interval}')
                   AND solar_irradiance_wm2 IS NOT NULL
                 ORDER BY rowid ASC"""
         ).fetchall()
@@ -352,7 +352,7 @@ def api_solar_forecast():
         forecasts = conn.execute(
             f"""SELECT timestamp, corrected_forecast
                 FROM forecast_log
-                WHERE timestamp > datetime('now', '{interval}')
+                WHERE datetime(timestamp) > datetime('now', '{interval}')
                 ORDER BY rowid ASC"""
         ).fetchall()
         conn.close()
@@ -395,7 +395,7 @@ def api_actuator_timeline():
                 LEFT JOIN (
                     SELECT timestamp AS p_ts, power_total_kw
                     FROM power_log
-                    WHERE timestamp > datetime('now', '{interval}')
+                    WHERE datetime(timestamp) > datetime('now', '{interval}')
                 ) p ON substr(s.timestamp,1,16) = substr(p.p_ts,1,16)
                 WHERE s.timestamp > datetime('now', '{interval}')
                 ORDER BY s.rowid ASC"""
@@ -454,7 +454,7 @@ def api_hvac_runtime():
             f"""SELECT date(timestamp) as day,
                        SUM(CASE WHEN hvac_mode != 'off' AND hvac_mode IS NOT NULL THEN 5 ELSE 0 END) / 60.0 as hours
                 FROM sensor_log
-                WHERE timestamp > datetime('now', '{interval}')
+                WHERE datetime(timestamp) > datetime('now', '{interval}')
                 GROUP BY day
                 ORDER BY day ASC"""
         ).fetchall()

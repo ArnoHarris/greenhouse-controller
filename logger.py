@@ -258,14 +258,13 @@ def get_model_rmse(hours_back=24):
     """
     conn = get_connection()
     cutoff = datetime.now(timezone.utc).isoformat()
-    # SQLite datetime comparison works on ISO strings
     row = conn.execute(
         """SELECT
                COUNT(*) as n,
                AVG(error_f) as mean_bias,
                AVG(error_f * error_f) as mse
            FROM model_accuracy
-           WHERE timestamp > datetime(?, '-%d hours')""" % hours_back,
+           WHERE datetime(timestamp) > datetime(?, '-%d hours')""" % hours_back,
         (cutoff,),
     ).fetchone()
 
