@@ -16,6 +16,8 @@ Python service running a 5-minute control loop:
 5. Apply rule-based priority logic to decide actuator actions: shades first (free, preventive) → fans (free cooling when outdoor temp permits) → HVAC (last resort)
 6. Execute commands and log everything to SQLite
 
+**Current implementation status:** Steps 1–4 are implemented (data collection phase). Steps 5–6 (actuator control logic and command execution) are not yet implemented. `controller.py` and `alerts.py` do not exist yet. The system is collecting data to fit and validate the thermal model before enabling automated control.
+
 Seasonal behavior emerges naturally from the forecast: summer's high solar loads trigger earlier shade deployment; winter allows solar gain before intervention. No explicit seasonal rules needed.
 
 This is NOT full MPC optimization. It's rule-based control informed by model predictions. Full optimization solver only worth pursuing if this approach proves insufficient.
@@ -111,42 +113,52 @@ This is NOT full MPC optimization. It's rule-based control informed by model pre
 
 ### Tech Stack
 - Python 3 (standalone service, no Home Assistant)
-- paho-mqtt (ESP32/minisplit communication)
+- paho-mqtt (Shelly H&T MQTT subscription; will also handle minisplit)
 - python-dotenv (load secrets from .env file)
 - requests (HTTP: weather API, Shelly devices, Open-Meteo)
-- tinytuya (only if WEFFORT hub uses Tuya ecosystem)
+- motionblinds (`pip install motionblinds`, local UDP protocol for WEFFORT shade hub)
+- python-kasa (`pip install python-kasa`, async API for Kasa smart switches)
 - Flask (dashboard web app)
 - SQLite (data logging)
 - Mosquitto (MQTT broker on Pi)
 - Chart.js (browser-side charting for dashboard)
-- ESPHome (ESP32 firmware)
+- ESPHome (ESP32 firmware, planned for minisplit)
 
 ### File Structure
 ```
 /home/pi/greenhouse/
-    main.py                # entry point, main loop, orchestration
+    main.py                # entry point, main loop, orchestration (data collection mode)
     state.py               # GreenhouseState dataclass
     thermal_model.py       # model equations, forward simulation
-    controller.py          # control logic, decision rules
     resilience.py          # DeviceHealth tracker, retry_with_fallback wrapper
-    alerts.py              # alert(message, severity), pluggable transports (email, SMS, dashboard)
-    devices/
-        shelly_ht.py       # Shelly H&T sensor reads
-        shelly_relay.py    # Shelly relay commands
-        minisplit.py        # ESP32/CN105 MQTT interface
-        weather_station.py  # AmbientWeather API
-        shades.py           # WEFFORT hub interface
     forecast.py            # Open-Meteo API + bias correction
     config.py              # setpoints, device IPs, tuning params
     .env                   # API keys, passwords (NOT in git, loaded via python-dotenv)
     logger.py              # data logging to SQLite
+    devices/
+        shelly_ht.py       # Shelly H&T sensor reads (MQTT primary, cloud fallback)
+        shelly_relay.py    # Shelly Plus 1 PM relay commands (exhaust fans)
+        shelly_3em.py      # Shelly Pro 3EM power meter (Gen2 RPC API)
+        kasa_switch.py     # Kasa HS210 smart switch (circulating fans, async wrapped)
+        weather_station.py # AmbientWeather API
+        shades.py          # WEFFORT hub via motionblinds library
     web/
         app.py             # Flask dashboard (separate process)
         templates/
-            dashboard.html
+            base.html      # shared layout, navigation
+            dashboard.html # Greenhouse page: current conditions, controls, overrides
+            history.html   # History page: temperature/solar/actuator charts
+            energy.html    # Energy page: power meter charts, current readings
+            diagnostic.html # Diagnostic page: device health, model accuracy, logs
         static/
             style.css
             dashboard.js
+
+# Not yet implemented (planned):
+    controller.py          # control logic, decision rules (Steps 5-6 of control loop)
+    alerts.py              # alert(message, severity), pluggable transports (email, SMS, dashboard)
+    devices/
+        minisplit.py       # ESP32/CN105 MQTT interface
 ```
 
 ### State Object
@@ -171,10 +183,12 @@ Data container only, no methods. All components read/write to it.
 ### Device Interface Pattern
 Organize by device (not read vs. control). Each device object encapsulates all communication with that device:
 - ShellyHT: reads temperature + humidity via MQTT (primary) or Shelly Cloud API (fallback)
-- ShellyRelay: reads state + issues on/off commands via Gen2+ RPC API
-- Minisplit: subscribes to MQTT state topics + publishes commands
+- ShellyRelay: reads state + issues on/off commands via Gen2+ RPC API (`/rpc/Switch.Set`, `/rpc/Switch.GetStatus`)
+- Shelly3EM: reads power/current/voltage/energy from Shelly Pro 3EM via Gen2 RPC API (`/rpc/EM.GetStatus`, `/rpc/EMData.GetStatus`)
+- KasaSwitch: reads state + issues on/off commands via python-kasa async API (wrapped with `asyncio.run()`)
 - WeatherStation: polls AmbientWeather REST API
-- Shades: handles hub protocol (TBD)
+- Shades: issues open/close commands to WEFFORT hub via `motionblinds` Python library (local UDP)
+- Minisplit: subscribes to MQTT state topics + publishes commands (not yet implemented)
 
 ### Main Loop (main.py)
 ```python
@@ -375,15 +389,16 @@ class Override:
 
 ### Behavior
 - Per-actuator: overriding shades does not affect controller management of fans or HVAC
-- **Default duration: 2 hours**, configurable on dashboard (longer durations available)
+- **Default duration: 2 hours** for shades/HVAC; **5 minutes** for exhaust fans (fans left running can overheat in winter)
+- Configurable to longer durations on dashboard
 - **SQLite-backed:** overrides survive controller restarts
 - **Latest wins:** a new override on the same actuator replaces the previous one (old one logged)
-- **Immediate execution:** dashboard sends command to device immediately, does not wait for next control cycle
+- **Immediate execution (planned):** dashboard will send command to device immediately, not wait for next control cycle. Currently, Flask writes override to SQLite only; device command execution is not yet implemented.
 - **Expiration:** when override expires, controller resumes normal control on next cycle
 
 ### Override Flow
 1. User taps override button on dashboard
-2. Flask endpoint writes override to SQLite AND immediately executes command against device
+2. Flask endpoint writes override to SQLite (and will immediately execute command against device once controller.py is implemented)
 3. Controller checks for active (non-expired) overrides before acting on each actuator
 4. If active override exists for an actuator, controller skips that actuator
 5. Dashboard shows active overrides with time remaining and a **Cancel** button
@@ -419,35 +434,50 @@ At ~100,000 rows/year (1 per 5-min cycle), SQLite handles this trivially.
 
 ## Dashboard (Flask)
 
-### Real-Time Display
+The dashboard has four pages, all dark-themed and optimized for tablet (Fire HD 10) use.
+
+### Page: Greenhouse (dashboard.html)
 - Current indoor temp/humidity (prominent)
-- Outdoor conditions
+- Current outdoor conditions with weather icon
 - Shade/fan/HVAC status with color indicators
-- Predicted temperature trajectory chart (next few hours)
+- Predicted temperature trajectory (current conditions card)
+- Forecast card: 2h ahead temp, weather icon, wind, humidity
 - Override buttons with large tap targets (open/close shades, fan on/off, HVAC mode)
-- Override duration: default 2 hours, configurable to longer on dashboard
+- Override duration: default 2 hours (5 min for exhaust fans), configurable to longer on dashboard
 - Active overrides shown with time remaining and **Cancel** button
 - Alert banner for active system alerts (device failures, etc.)
+- Controller offline banner if heartbeat is stale (> 10 minutes)
+
+### Page: History (history.html)
+- **Temperature overlay:** actual indoor vs. outdoor temp
+- **Solar forecast vs. actual:** Open-Meteo forecast vs. AmbientWeather station
+- **Actuator timeline:** horizontal bars showing when shades deployed, fans running, HVAC active
+- **Time ranges:** last 24 hours, 7 days, 30 days
+
+### Page: Energy (energy.html)
+- Current power gauge (Phase A + Phase B total, kW)
+- Phase A and Phase B current readings (kW each)
+- Voltage and frequency
+- Power over time chart (kW)
+- Cumulative energy chart (kWh per interval)
+- Data from Shelly Pro 3EM via `power_log` SQLite table
+
+### Page: Diagnostic (diagnostic.html)
+- Controller heartbeat / online status
+- Model accuracy (RMSE, mean bias) over 24h and 7d windows
+- Recent sensor log entries
+- Recent alerts
 
 ### Dashboard Independence
 The dashboard must function even when the controller process is down:
 - Flask detects controller status via heartbeat timestamp in SQLite
 - If controller is offline, displays warning banner ("Controller offline — manual mode only")
-- Override buttons still work — Flask calls device APIs directly using the same device modules
-- Overrides written to SQLite as usual, so controller respects them when it comes back
+- Override buttons write to SQLite; device command execution happens at next controller cycle (or immediately once controller.py is implemented)
 - Device communication code must be importable by both controller and Flask app
 
-### Historical Charts (Chart.js via AJAX to Flask JSON endpoints)
-- **Temperature overlay:** actual indoor temp vs. model prediction (primary accuracy diagnostic)
-- **Solar forecast vs. actual:** Open-Meteo forecast vs. AmbientWeather station
-- **Actuator timeline:** horizontal bars showing when shades deployed, fans running, HVAC active
-- **HVAC runtime:** hours per day/week (energy cost proxy)
-- **Time ranges:** last 24 hours, 7 days, 30 days
-- Visually distinguish override periods (background shading or different color)
-
 ### Security
-- Flask-Login with username/password
-- Prevents unauthorized override commands
+- Flask-Login with username/password (planned — not yet implemented)
+- Currently no authentication; do not expose to untrusted networks
 
 ## ESP32 Firmware (ESPHome)
 
