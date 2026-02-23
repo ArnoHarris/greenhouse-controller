@@ -149,7 +149,7 @@ body {
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  padding: 0 56px;
+  padding: 0 9%;
 }
 .weather-cell { display: flex; align-items: center; gap: 10px; }
 .weather-icon { width: 56px; height: 56px; }
@@ -198,9 +198,9 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: repeat(5, 1fr);
-  row-gap: 42px;
-  column-gap: 42px;
-  padding: 0 28px;
+  row-gap: 7%;
+  column-gap: 7%;
+  padding: 0 5%;
   flex: 1;
   min-height: 0;
 }
@@ -220,7 +220,7 @@ body {
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  padding: 10px 28px;
+  padding: 5% 10%;
   transition: background 0.2s, transform 0.1s;
   color: var(--text);
   font-size: 15px;
@@ -259,7 +259,7 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  padding: 8px 16px;
+  padding: 0.5em 1em;
   min-width: 80px;
   gap: 2px;
   cursor: pointer;
@@ -515,7 +515,30 @@ body {
   .two-col-layout { grid-template-columns: 1fr; height: auto; }
   .panel { min-height: 400px; }
   .greenhouse-wrap { min-height: 260px; }
+  .tab { font-size: 18px; padding: 0 14px; }
+  .tab-diag { display: none; }
+
+  /* Weather row */
+  .weather-row { padding: 0 3%; }
+  .weather-temp { font-size: 20px; }
+  .weather-humidity { font-size: 16px; }
+  .arrow-svg { width: 50px; height: 67px; }
+
+  /* Indoor bubble */
   .indoor-bubble { width: 100px; height: 100px; }
   .indoor-temp { font-size: 22px; }
-  .tab { font-size: 18px; padding: 0 14px; }
+  .indoor-humidity { font-size: 17px; }
+
+  /* Controls panel — compact, no spacers */
+  .controls-panel { min-height: unset; }
+  .controls-grid {
+    grid-template-rows: auto;
+    flex: unset;
+    row-gap: 14px;
+    column-gap: 14px;
+  }
+  .ctrl-spacer { display: none; }
+  .btn-label { font-size: 16px; }
+  .btn-sub { font-size: 12px; }
+  .sp-value { font-size: 18px; }
 }
