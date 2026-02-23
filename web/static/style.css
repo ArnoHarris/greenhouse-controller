@@ -154,14 +154,12 @@ body {
 .weather-cell { display: flex; align-items: center; gap: 10px; }
 .weather-icon { width: 56px; height: 56px; }
 .weather-vals { display: flex; flex-direction: column; gap: 4px; }
-.weather-cell.right .weather-vals { align-items: flex-end; }
 .weather-temp { font-size: 28px; font-weight: 600; }
 .weather-humidity { font-size: 22px; color: var(--text-muted); }
 .drop-icon { margin-left: 2px; font-size: 16px; }
 
-.forecast-arrow { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.arrow-label { font-size: 13px; color: var(--text-muted); }
-.arrow-svg { width: 48px; height: 24px; }
+.forecast-arrow { display: flex; align-items: center; justify-content: center; }
+.arrow-svg { width: 80px; height: 36px; }
 
 .greenhouse-wrap {
   position: relative;
