@@ -800,7 +800,7 @@ async function loadHvacRuntimeChart(range) {
 function timeScaleConfig(range) {
   switch (range) {
     case "1h":  return { unit: "minute", stepSize: 5,  displayFormats: { minute: "HH:mm" } };
-    case "24h": return { unit: "hour",   stepSize: 1,  displayFormats: { hour: "HH:mm",  day: "MM/dd" } };
+    case "24h": return { unit: "hour",   stepSize: 3,  displayFormats: { hour: "HH:mm",  day: "MM/dd" } };
     case "7d":  return { unit: "day",    stepSize: 1,  displayFormats: { day: "MM/dd" } };
     case "30d": return { unit: "day",    stepSize: 5,  displayFormats: { day: "MM/dd" } };
     case "1y":  return { unit: "month",  stepSize: 1,  displayFormats: { month: "MMM"  } };
