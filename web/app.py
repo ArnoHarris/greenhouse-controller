@@ -213,7 +213,7 @@ def _extract_forecast_summary(fc):
         times = fc.get("time", [])
         temps = fc.get("temperature_f", [])
         codes = fc.get("weather_code", [])
-        now = datetime.now(timezone.utc)
+        now = datetime.now()  # local time — forecast uses timezone: "auto" (local)
 
         def find_idx(offset_h):
             target = now + timedelta(hours=offset_h)
