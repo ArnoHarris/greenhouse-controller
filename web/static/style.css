@@ -198,11 +198,17 @@ body {
 .controls-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: repeat(3, 1fr);
-  row-gap: var(--gap);
-  column-gap: var(--gap);
+  grid-template-rows: repeat(5, 1fr);
+  row-gap: 42px;
+  column-gap: 42px;
+  padding: 0 28px;
   flex: 1;
   min-height: 0;
+}
+.ctrl-spacer {
+  grid-column: 1 / -1;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .ctrl-btn {
