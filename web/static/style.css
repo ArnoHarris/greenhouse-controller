@@ -154,12 +154,12 @@ body {
 .weather-cell { display: flex; align-items: center; gap: 10px; }
 .weather-icon { width: 56px; height: 56px; }
 .weather-vals { display: flex; flex-direction: column; gap: 4px; }
-.weather-temp { font-size: 28px; font-weight: 600; }
-.weather-humidity { font-size: 22px; color: var(--text-muted); }
+.weather-temp { font-size: 42px; font-weight: 600; }
+.weather-humidity { font-size: 33px; color: var(--text-muted); }
 .drop-icon { margin-left: 2px; font-size: 16px; }
 
 .forecast-arrow { display: flex; align-items: center; justify-content: center; }
-.arrow-svg { width: 80px; height: 36px; }
+.arrow-svg { width: 80px; height: 108px; }
 
 .greenhouse-wrap {
   position: relative;
@@ -180,14 +180,14 @@ body {
   background: rgba(43,43,43,0.88);
   border: 2px solid rgba(255,255,255,0.22);
   border-radius: 50%;
-  width: 120px; height: 120px;
+  width: 155px; height: 155px;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   gap: 4px;
   backdrop-filter: blur(4px);
 }
-.indoor-temp     { font-size: 26px; font-weight: 700; }
-.indoor-humidity { font-size: 21px; color: var(--text-muted); }
+.indoor-temp     { font-size: 39px; font-weight: 700; }
+.indoor-humidity { font-size: 32px; color: var(--text-muted); }
 
 /* ============================================================
    Controls panel
