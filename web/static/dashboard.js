@@ -531,7 +531,7 @@ async function loadTempChart() {
         { label: "Outdoor °F", data: outdoor, borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
       ],
     },
-    options: chartOptions(range, "°F"),
+    options: chartOptions(range, "°F", _tempOffset),
   });
 }
 
@@ -568,7 +568,7 @@ async function loadHumChart() {
         { label: "Outdoor %", data: outdoor, borderColor: "#80cbc4", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
       ],
     },
-    options: chartOptions(range, "%"),
+    options: chartOptions(range, "%", _humOffset),
   });
 }
 
@@ -618,7 +618,7 @@ async function loadPowerChart() {
         { label: "Total kW",   data: total,  borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
       ],
     },
-    options: chartOptions(range, "kW"),
+    options: chartOptions(range, "kW", _powerOffset),
   });
 }
 
@@ -734,6 +734,7 @@ async function loadTimelineChart(range) {
     if (!ctx) return;
     if (_timelineChart) _timelineChart.destroy();
     const ts = timeScaleConfig(range);
+    const { min: tlMin, max: tlMax } = rangeWindow(range);
     _timelineChart = new Chart(ctx, {
       type: "bar",
       data: { datasets },
@@ -757,6 +758,8 @@ async function loadTimelineChart(range) {
         scales: {
           x: {
             type: "time",
+            min: tlMin,
+            max: tlMax,
             time: { unit: ts.unit, stepSize: ts.stepSize, displayFormats: ts.displayFormats },
             ticks: { color: "#9a9a9a", maxRotation: 0, font: { size: 11 } },
             grid:  { color: "rgba(255,255,255,0.06)" },
@@ -819,7 +822,7 @@ async function loadDiagPowerChart() {
         { label: "Total kW",   data: total,  borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
       ],
     },
-    options: chartOptions(range, "kW"),
+    options: chartOptions(range, "kW", _diagPowerOffset),
   });
 }
 
@@ -828,6 +831,27 @@ function shiftDiagPowerRange(dir) { _diagPowerOffset += dir; loadDiagPowerChart(
 // ---------------------------------------------------------------------------
 // Shared Chart.js options
 // ---------------------------------------------------------------------------
+function rangeDurationMs(range) {
+  switch (range) {
+    case "1h":  return 1  * 3600 * 1000;
+    case "24h": return 24 * 3600 * 1000;
+    case "7d":  return 7  * 86400 * 1000;
+    case "30d": return 30 * 86400 * 1000;
+    case "1y":  return 365 * 86400 * 1000;
+    default:    return 24 * 3600 * 1000;
+  }
+}
+
+// Returns { min, max } as Dates for the intended time window.
+// offset=0 → current period (now-duration to now)
+// offset=-1 → previous period, etc.
+function rangeWindow(range, offset = 0) {
+  const ms  = rangeDurationMs(range);
+  const max = new Date(Date.now() + offset * ms);
+  const min = new Date(+max - ms);
+  return { min, max };
+}
+
 function timeScaleConfig(range) {
   switch (range) {
     case "1h":  return { unit: "minute", stepSize: 5,  displayFormats: { minute: "HH:mm" } };
@@ -839,8 +863,9 @@ function timeScaleConfig(range) {
   }
 }
 
-function chartOptions(range, yLabel) {
+function chartOptions(range, yLabel, offset = 0) {
   const ts = timeScaleConfig(range);
+  const { min, max } = rangeWindow(range, offset);
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -865,6 +890,8 @@ function chartOptions(range, yLabel) {
     scales: {
       x: {
         type: "time",
+        min,
+        max,
         time: { unit: ts.unit, stepSize: ts.stepSize, displayFormats: ts.displayFormats },
         ticks: { color: "#9a9a9a", maxRotation: 0, font: { size: 11 } },
         grid:  { color: "rgba(255,255,255,0.06)" },

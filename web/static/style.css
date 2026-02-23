@@ -159,7 +159,7 @@ body {
 .drop-icon { margin-left: 2px; font-size: 16px; }
 
 .forecast-arrow { display: flex; align-items: center; justify-content: center; }
-.arrow-svg { width: 80px; height: 108px; }
+.arrow-svg { width: 104px; height: 140px; }
 
 .greenhouse-wrap {
   position: relative;
@@ -523,7 +523,8 @@ body {
   .weather-row { padding: 0 3%; }
   .weather-temp { font-size: 20px; }
   .weather-humidity { font-size: 16px; }
-  .arrow-svg { width: 50px; height: 67px; }
+  .arrow-svg { width: 65px; height: 87px; }
+  .drop-icon { font-size: 8px; }
 
   /* Indoor bubble */
   .indoor-bubble { width: 100px; height: 100px; }
