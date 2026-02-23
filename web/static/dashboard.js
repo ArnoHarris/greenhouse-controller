@@ -99,13 +99,14 @@ function applyState(s) {
   setText("indoor-temp",      s.indoor_temp      != null ? fmtTemp(s.indoor_temp)            : "—°F");
   setText("indoor-humidity",  s.indoor_humidity  != null ? Math.round(s.indoor_humidity)     : "—");
 
-  // Forecast icons + arrow temp
+  // Forecast icons + arrow temp — use Open-Meteo's is_day for accurate day/night icons
   if (s.forecast) {
     const fc = s.forecast;
     if (fc.forecast_2h_temp != null) setText("forecast-temp", fmtTemp(fc.forecast_2h_temp));
-    const day = isDaytime();
-    setIcon("icon-current",  wmoIcon(fc.current_code,     day));
-    setIcon("icon-forecast", wmoIcon(fc.forecast_2h_code, day));
+    const dayNow = fc.current_is_day  !== undefined ? fc.current_is_day  : isDaytime();
+    const dayFwd = fc.forecast_2h_is_day !== undefined ? fc.forecast_2h_is_day : isDaytime();
+    setIcon("icon-current",  wmoIcon(fc.current_code,     dayNow));
+    setIcon("icon-forecast", wmoIcon(fc.forecast_2h_code, dayFwd));
   }
   setText("forecast-humidity", s.outdoor_humidity != null ? Math.round(s.outdoor_humidity) : "—");
 
@@ -637,6 +638,8 @@ let _diagTempChart    = null;
 let _solarChart       = null;
 let _timelineChart    = null;
 let _hvacRuntimeChart = null;
+let _diagPowerChart   = null;
+let _diagPowerOffset  = 0;
 
 const ACTUATOR_ORDER  = ["East Shades", "West Shades", "Exhaust Fans", "Circ Fans", "HVAC"];
 const ACTUATOR_COLORS = {
@@ -650,6 +653,7 @@ const ACTUATOR_COLORS = {
 function initDiagnosticPage() {
   fetchState();
   loadDiagCharts();
+  loadDiagPowerChart();
 }
 
 function loadDiagCharts() {
@@ -792,6 +796,34 @@ async function loadHvacRuntimeChart(range) {
     });
   } catch (e) { console.warn("HVAC runtime chart failed:", e); }
 }
+
+async function loadDiagPowerChart() {
+  const range = document.getElementById("diag-power-range")?.value || "24h";
+  const data  = await fetchPower(range, _diagPowerOffset);
+  updateDateLabel("diag-power-date-label", data);
+  if (!data.length) return;
+
+  const phaseA = data.map(r => ({ x: new Date(r.timestamp), y: r.power_a_kw     }));
+  const phaseB = data.map(r => ({ x: new Date(r.timestamp), y: r.power_b_kw     }));
+  const total  = data.map(r => ({ x: new Date(r.timestamp), y: r.power_total_kw }));
+
+  const ctx = document.getElementById("diag-power-chart");
+  if (!ctx) return;
+  if (_diagPowerChart) _diagPowerChart.destroy();
+  _diagPowerChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      datasets: [
+        { label: "Phase A kW", data: phaseA, borderColor: "#ce93d8", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+        { label: "Phase B kW", data: phaseB, borderColor: "#f0a030", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+        { label: "Total kW",   data: total,  borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+      ],
+    },
+    options: chartOptions(range, "kW"),
+  });
+}
+
+function shiftDiagPowerRange(dir) { _diagPowerOffset += dir; loadDiagPowerChart(); }
 
 // ---------------------------------------------------------------------------
 // Shared Chart.js options

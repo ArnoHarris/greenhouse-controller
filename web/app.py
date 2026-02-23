@@ -210,9 +210,10 @@ def api_state():
 def _extract_forecast_summary(fc):
     """Pull current + 2hr conditions from corrected forecast dict."""
     try:
-        times = fc.get("time", [])
-        temps = fc.get("temperature_f", [])
-        codes = fc.get("weather_code", [])
+        times   = fc.get("time", [])
+        temps   = fc.get("temperature_f", [])
+        codes   = fc.get("weather_code", [])
+        is_day  = fc.get("is_day", [])
         now = datetime.now()  # local time — forecast uses timezone: "auto" (local)
 
         def find_idx(offset_h):
@@ -228,11 +229,13 @@ def _extract_forecast_summary(fc):
 
         summary = {}
         if cur_idx is not None:
-            summary["current_code"] = codes[cur_idx] if cur_idx < len(codes) else None
-            summary["current_temp"] = temps[cur_idx] if cur_idx < len(temps) else None
+            summary["current_code"]   = codes[cur_idx]  if cur_idx < len(codes)  else None
+            summary["current_temp"]   = temps[cur_idx]  if cur_idx < len(temps)  else None
+            summary["current_is_day"] = bool(is_day[cur_idx]) if cur_idx < len(is_day) else True
         if fwd_idx is not None:
-            summary["forecast_2h_code"] = codes[fwd_idx] if fwd_idx < len(codes) else None
-            summary["forecast_2h_temp"] = temps[fwd_idx] if fwd_idx < len(temps) else None
+            summary["forecast_2h_code"]   = codes[fwd_idx]  if fwd_idx < len(codes)  else None
+            summary["forecast_2h_temp"]   = temps[fwd_idx]  if fwd_idx < len(temps)  else None
+            summary["forecast_2h_is_day"] = bool(is_day[fwd_idx]) if fwd_idx < len(is_day) else True
 
         return summary
     except Exception:
@@ -397,7 +400,7 @@ def api_actuator_timeline():
                     FROM power_log
                     WHERE datetime(timestamp) > datetime('now', '{interval}')
                 ) p ON substr(s.timestamp,1,16) = substr(p.p_ts,1,16)
-                WHERE s.timestamp > datetime('now', '{interval}')
+                WHERE datetime(s.timestamp) > datetime('now', '{interval}')
                 ORDER BY s.rowid ASC"""
         ).fetchall()
         conn.close()

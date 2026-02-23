@@ -53,6 +53,31 @@
     </div>
   </div>
 
+  <!-- 5. Power consumption -->
+  <div class="panel diag-panel">
+    <div class="panel-title">power consumption</div>
+    <div class="chart-controls">
+      <div class="range-select-wrap">
+        <span class="range-icon">🕐</span>
+        <select id="diag-power-range" class="range-select" onchange="loadDiagPowerChart()">
+          <option value="1h">Last 1 hour</option>
+          <option value="24h" selected>Last 24 hours</option>
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+        </select>
+        <span class="range-arrow">▼</span>
+      </div>
+      <div class="date-nav">
+        <button class="date-nav-btn" onclick="shiftDiagPowerRange(-1)">‹</button>
+        <span class="date-nav-label" id="diag-power-date-label">—</span>
+        <button class="date-nav-btn" onclick="shiftDiagPowerRange(+1)">›</button>
+      </div>
+    </div>
+    <div class="chart-wrap chart-wrap-full">
+      <canvas id="diag-power-chart"></canvas>
+    </div>
+  </div>
+
 </div>
 {% endblock %}
 
