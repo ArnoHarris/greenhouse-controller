@@ -259,7 +259,7 @@ body {
 
 .auto-control-btn {
   flex: 3;
-  background: transparent;
+  background: rgba(255,255,255,0.07);
   border: 2px solid var(--dot-auto);
   border-radius: 8px;
   color: var(--dot-auto);
@@ -272,6 +272,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .auto-control-btn.has-overrides {
+  background: transparent;
   border-color: var(--text);
   color: var(--text);
 }
@@ -309,6 +310,7 @@ body {
 }
 
 .btn-label { font-size: 20px; font-weight: 500; }
+.label-short { display: none; }
 .btn-sub   { font-size: 14px; color: rgba(255,255,255,0.6); }
 
 
@@ -594,6 +596,10 @@ body {
   .indoor-bubble { width: 100px; height: 100px; }
   .indoor-temp { font-size: 22px; }
   .indoor-humidity { font-size: 17px; }
+
+  /* Abbreviated button labels on mobile */
+  .label-full  { display: none; }
+  .label-short { display: inline; }
 
   /* Controls panel — compact */
   .controls-panel { min-height: unset; }
