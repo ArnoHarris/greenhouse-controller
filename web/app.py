@@ -13,8 +13,10 @@ from flask import Flask, render_template, request, jsonify
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 from devices.shelly_relay import ShellyRelay
+from devices.kasa_switch import KasaSwitch
 
 exhaust_fan_relay = ShellyRelay(config.SHELLY_RELAY_IP, name="exhaust_fans")
+circ_fan_switch   = KasaSwitch(config.KASA_CIRC_FANS_IP)
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-key-change-in-production")
@@ -537,6 +539,15 @@ def api_set_override():
             except Exception as exc:
                 device_error = str(exc)
                 print(f"Fan command failed: {exc}", flush=True)
+        elif actuator == "circ_fans":
+            try:
+                if command.get("on"):
+                    circ_fan_switch.turn_on()
+                else:
+                    circ_fan_switch.turn_off()
+            except Exception as exc:
+                device_error = str(exc)
+                print(f"Circ fan command failed: {exc}", flush=True)
 
         result = {"ok": True, "expires_at": expires_at.isoformat()}
         if device_error:
