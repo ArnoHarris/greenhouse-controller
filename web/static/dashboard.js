@@ -626,7 +626,7 @@ async function loadPowerChart() {
     type: "line",
     data: {
       datasets: [
-        { label: "Phase A kW", data: phaseA, borderColor: "#000000", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+        { label: "Phase A kW", data: phaseA, borderColor: "#156082", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
         { label: "Phase B kW", data: phaseB, borderColor: "#ef5350", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
         { label: "Total kW",   data: total,  borderColor: "#f0a030", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
       ],
@@ -834,7 +834,7 @@ async function loadDiagPowerChart() {
     type: "line",
     data: {
       datasets: [
-        { label: "Phase A kW", data: phaseA, borderColor: "#000000", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+        { label: "Phase A kW", data: phaseA, borderColor: "#156082", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
         { label: "Phase B kW", data: phaseB, borderColor: "#ef5350", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
         { label: "Total kW",   data: total,  borderColor: "#f0a030", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
       ],
@@ -902,6 +902,9 @@ function chartOptions(range, yLabel, offset = 0) {
       tooltip: {
         backgroundColor: "#1e1e1e", borderColor: "#4a4a4a", borderWidth: 1,
         titleColor: "#9a9a9a", bodyColor: "#ffffff",
+        callbacks: {
+          labelColor: (ctx) => ({ borderColor: ctx.dataset.borderColor, backgroundColor: ctx.dataset.borderColor }),
+        },
       },
     },
     scales: {
