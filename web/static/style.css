@@ -207,7 +207,7 @@ body {
 .controls-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto 1fr 1fr 1fr auto;
+  grid-template-rows: auto auto 1fr 1fr 1fr auto;
   row-gap: 7%;
   column-gap: 7%;
   padding: 0 5%;
@@ -258,18 +258,17 @@ body {
   background: transparent;
   border: 2px solid var(--dot-auto);
   border-radius: 8px;
-  color: var(--dot-auto);
-  font-size: 16px;
-  font-weight: 600;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 500;
   letter-spacing: 0.5px;
   cursor: pointer;
   padding: 10px;
-  transition: border-color 0.2s, color 0.2s;
+  transition: border-color 0.2s;
   -webkit-tap-highlight-color: transparent;
 }
 .auto-control-btn.has-overrides {
-  border-color: var(--panel-border);
-  color: var(--text-muted);
+  border-color: var(--text);
 }
 
 .ctrl-btn {
