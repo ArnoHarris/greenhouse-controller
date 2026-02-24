@@ -12,6 +12,9 @@ from flask import Flask, render_template, request, jsonify
 # Add project root to path so we can import config
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
+from devices.shelly_relay import ShellyRelay
+
+exhaust_fan_relay = ShellyRelay(config.SHELLY_RELAY_IP, name="exhaust_fans")
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-key-change-in-production")
@@ -522,7 +525,23 @@ def api_set_override():
         )
         conn.commit()
         conn.close()
-        return jsonify({"ok": True, "expires_at": expires_at.isoformat()})
+
+        # Execute device command immediately
+        device_error = None
+        if actuator == "fan":
+            try:
+                if command.get("on"):
+                    exhaust_fan_relay.turn_on()
+                else:
+                    exhaust_fan_relay.turn_off()
+            except Exception as exc:
+                device_error = str(exc)
+                print(f"Fan command failed: {exc}", flush=True)
+
+        result = {"ok": True, "expires_at": expires_at.isoformat()}
+        if device_error:
+            result["device_error"] = device_error
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

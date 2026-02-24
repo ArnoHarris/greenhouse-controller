@@ -10,7 +10,7 @@ Environment-specific IPs (e.g. devices that move between VLANs) also live in .en
 # ---------------------------------------------------------------------------
 SHELLY_HT_IP = "192.168.2.100"          # Shelly H&T G3 on IoT VLAN
 SHELLY_HT_DEVICE_ID = "e4b323311d58"   # MAC-based ID (cloud API uses this format)
-SHELLY_RELAY_IP = "192.168.1.XXX"       # Shelly Plus 1 PM on IoT VLAN
+SHELLY_RELAY_IP = "192.168.2.106"       # Shelly Plus 1 PM on IoT VLAN
 KASA_CIRC_FANS_IP = "192.168.2.102"    # Kasa HS210 3-way switch (2x circulating fans)
 WEATHER_STATION_IP = "192.168.2.101"   # AmbientWeather WS-2902 on IoT VLAN
 MOTION_GATEWAY_IP = "192.168.1.103"    # Dooya/Motion Blinds Pro Hub DD7006 (main LAN; IoT VLAN move deferred)
