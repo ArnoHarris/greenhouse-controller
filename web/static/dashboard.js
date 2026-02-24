@@ -66,8 +66,11 @@ updateClock();
 let _lastState = null;
 
 function startDashboardPolling() {
-  fetchState();
-  setInterval(fetchState, 30000);
+  async function poll() {
+    await fetchState();
+    setTimeout(poll, 5000);
+  }
+  poll();
 }
 
 async function fetchState() {
