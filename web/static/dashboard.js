@@ -607,9 +607,9 @@ async function loadPowerChart() {
     type: "line",
     data: {
       datasets: [
-        { label: "Phase A kW", data: phaseA, borderColor: "#ce93d8", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
-        { label: "Phase B kW", data: phaseB, borderColor: "#f0a030", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
-        { label: "Total kW",   data: total,  borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+        { label: "Phase A kW", data: phaseA, borderColor: "#000000", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+        { label: "Phase B kW", data: phaseB, borderColor: "#ef5350", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+        { label: "Total kW",   data: total,  borderColor: "#f0a030", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
       ],
     },
     options: chartOptions(range, "kW", _powerOffset),
@@ -815,9 +815,9 @@ async function loadDiagPowerChart() {
     type: "line",
     data: {
       datasets: [
-        { label: "Phase A kW", data: phaseA, borderColor: "#ce93d8", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
-        { label: "Phase B kW", data: phaseB, borderColor: "#f0a030", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
-        { label: "Total kW",   data: total,  borderColor: "#4fc3f7", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+        { label: "Phase A kW", data: phaseA, borderColor: "#000000", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+        { label: "Phase B kW", data: phaseB, borderColor: "#ef5350", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
+        { label: "Total kW",   data: total,  borderColor: "#f0a030", borderWidth: 2, pointRadius: 0, tension: 0, fill: false },
       ],
     },
     options: chartOptions(range, "kW", _diagPowerOffset),
