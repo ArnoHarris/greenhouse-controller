@@ -588,6 +588,60 @@ def api_cancel_override(actuator):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/pause", methods=["POST"])
+def api_pause_auto():
+    """Pause auto control by locking all actuators in their current state until 10pm."""
+    now = datetime.now(timezone.utc)
+    expires_at = next_10pm_utc()
+
+    try:
+        conn = get_db()
+
+        try:
+            sensor = conn.execute(
+                "SELECT shades_east, shades_west, fan_on, circ_fans_on, hvac_mode "
+                "FROM sensor_log ORDER BY rowid DESC LIMIT 1"
+            ).fetchone()
+        except Exception:
+            sensor = None
+
+        if sensor:
+            s = dict(sensor)
+            actuator_commands = [
+                ("shades_east", {"position": s.get("shades_east") or "open"}),
+                ("shades_west", {"position": s.get("shades_west") or "open"}),
+                ("fan",         {"on": bool(s.get("fan_on"))}),
+                ("circ_fans",   {"on": bool(s.get("circ_fans_on"))}),
+                ("hvac",        {"mode": s.get("hvac_mode") or "off"}),
+            ]
+        else:
+            actuator_commands = [
+                ("shades_east", {"position": "open"}),
+                ("shades_west", {"position": "open"}),
+                ("fan",         {"on": False}),
+                ("circ_fans",   {"on": False}),
+                ("hvac",        {"mode": "off"}),
+            ]
+
+        ensure_overrides(conn)
+        for actuator, command in actuator_commands:
+            conn.execute(
+                "UPDATE overrides SET cancelled_at = ? WHERE actuator = ? AND cancelled_at IS NULL",
+                (now.isoformat(), actuator),
+            )
+            conn.execute(
+                "INSERT INTO overrides (actuator, command, created_at, expires_at, source) "
+                "VALUES (?,?,?,?,'dashboard')",
+                (actuator, json.dumps(command), now.isoformat(), expires_at.isoformat()),
+            )
+        conn.commit()
+        conn.close()
+
+        return jsonify({"ok": True, "expires_at": expires_at.isoformat()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/overrides", methods=["DELETE"])
 def api_cancel_all_overrides():
     """Cancel all active overrides — restores full automatic control."""

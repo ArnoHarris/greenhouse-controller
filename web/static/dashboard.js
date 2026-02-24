@@ -234,6 +234,22 @@ async function handleOverrideClick(e) {
   } catch (err) { console.error("Override toggle failed:", err); }
 }
 
+function toggleAutoControl() {
+  const btn = document.getElementById("btn-auto-control");
+  if (btn && btn.classList.contains("has-overrides")) {
+    restoreAutoControl();   // currently paused → restore
+  } else {
+    pauseAutoControl();     // currently auto → pause
+  }
+}
+
+async function pauseAutoControl() {
+  try {
+    await fetch("/api/pause", { method: "POST" });
+    fetchState();
+  } catch (err) { console.error("Pause auto failed:", err); }
+}
+
 async function restoreAutoControl() {
   try {
     await fetch("/api/overrides", { method: "DELETE" });
