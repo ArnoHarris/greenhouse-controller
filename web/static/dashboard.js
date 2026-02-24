@@ -590,6 +590,25 @@ function initEnergyPage() {
   loadPowerChart();
 }
 
+function startGaugePolling() {
+  async function poll() {
+    try {
+      const res = await fetch("/api/live_power");
+      if (res.ok) {
+        const d = await res.json();
+        if (!d.error) {
+          drawGauge("gauge-freq-svg",    "gauge-freq",    d.freq_hz,   GAUGE_SPECS.freq);
+          drawGauge("gauge-power-svg",   "gauge-power",   d.power_kw,  GAUGE_SPECS.power);
+          drawGauge("gauge-current-svg", "gauge-current", d.current_a, GAUGE_SPECS.current);
+          drawGauge("gauge-voltage-svg", "gauge-voltage", d.voltage_v, GAUGE_SPECS.voltage);
+        }
+      }
+    } catch (e) { console.warn("Live power poll failed:", e); }
+    setTimeout(poll, 1000);
+  }
+  setTimeout(poll, 0);
+}
+
 async function loadPowerChart() {
   const range = document.getElementById("power-range")?.value || "24h";
   const data  = await fetchPower(range, _powerOffset);

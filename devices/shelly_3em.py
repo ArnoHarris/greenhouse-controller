@@ -25,14 +25,16 @@ class Shelly3EM:
     def __init__(self, ip):
         self.ip = ip
 
-    def read(self):
+    def read(self, timeout=None):
         """Fetch current readings. Returns dict with phase_a, phase_b, total_power_kw.
 
         Raises on connection failure or HTTP error.
+        timeout overrides config.HTTP_TIMEOUT when provided.
         """
+        t = timeout if timeout is not None else config.HTTP_TIMEOUT
         em_resp = requests.get(
             f"http://{self.ip}/rpc/EM.GetStatus?id=0",
-            timeout=config.HTTP_TIMEOUT,
+            timeout=t,
         )
         em_resp.raise_for_status()
         em = em_resp.json()
@@ -41,7 +43,7 @@ class Shelly3EM:
         try:
             emd_resp = requests.get(
                 f"http://{self.ip}/rpc/EMData.GetStatus?id=0",
-                timeout=config.HTTP_TIMEOUT,
+                timeout=t,
             )
             emd_resp.raise_for_status()
             emd = emd_resp.json()

@@ -4,6 +4,7 @@ import json
 import os
 import sqlite3
 import sys
+import time
 import traceback
 from datetime import datetime, timezone, timedelta
 
@@ -14,9 +15,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 from devices.shelly_relay import ShellyRelay
 from devices.kasa_switch import KasaSwitch
+from devices.shelly_3em import Shelly3EM
 
 exhaust_fan_relay = ShellyRelay(config.SHELLY_RELAY_IP, name="exhaust_fans")
 circ_fan_switch   = KasaSwitch(config.KASA_CIRC_FANS_IP)
+shelly_3em        = Shelly3EM(config.SHELLY_3EM_IP)
+
+_live_power_cache = {"data": None, "ts": 0.0}
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-key-change-in-production")
@@ -221,6 +226,29 @@ def api_state():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e), "controller_online": False}), 500
+
+
+@app.route("/api/live_power")
+def api_live_power():
+    """Return real-time power readings directly from Shelly 3EM (1-second server cache)."""
+    now = time.monotonic()
+    if _live_power_cache["data"] and now - _live_power_cache["ts"] < 0.8:
+        return jsonify(_live_power_cache["data"])
+    try:
+        raw = shelly_3em.read(timeout=2)
+        va  = raw["phase_a"]["voltage_v"]
+        vb  = raw["phase_b"]["voltage_v"]
+        data = {
+            "power_kw":  raw["total_power_kw"],
+            "current_a": raw["phase_a"]["current_a"],
+            "voltage_v": va + vb,
+            "freq_hz":   raw["freq_hz"],
+        }
+        _live_power_cache["data"] = data
+        _live_power_cache["ts"]   = now
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 503
 
 
 def _extract_forecast_summary(fc):
