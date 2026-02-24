@@ -64,12 +64,10 @@ updateClock();
 // State polling
 // ---------------------------------------------------------------------------
 let _lastState = null;
-let _fanOverrideExpires = null;
 
 function startDashboardPolling() {
   fetchState();
   setInterval(fetchState, 30000);
-  setInterval(tickFanTimer, 1000);
 }
 
 async function fetchState() {
@@ -116,6 +114,12 @@ function applyState(s) {
     for (const ov of s.overrides) overrides[ov.actuator] = ov;
   }
 
+  // Auto Control button — green when fully automatic, gray when any override is active
+  const autoBtn = document.getElementById("btn-auto-control");
+  if (autoBtn) {
+    autoBtn.classList.toggle("has-overrides", s.overrides && s.overrides.length > 0);
+  }
+
   // Greenhouse image — use override command when active
   const img = document.getElementById("greenhouse-img");
   if (img) {
@@ -149,21 +153,6 @@ function applyState(s) {
     window._settings = s.settings;
   }
 
-  // Fan override timer — only count down when override is for ON state
-  const fanOv = overrides["fan"];
-  if (fanOv) {
-    const fanCmd = tryParseCmd(fanOv.command);
-    if (fanCmd.on) {
-      _fanOverrideExpires = new Date(fanOv.expires_at);
-    } else {
-      _fanOverrideExpires = null;
-      setText("fan-timer", "5:00 min");
-    }
-  } else {
-    _fanOverrideExpires = null;
-    setText("fan-timer", "5:00 min");
-  }
-
   // Gauges (energy page — no-ops on other pages)
   drawGauge("gauge-freq-svg",    "gauge-freq",    s.freq_hz,   GAUGE_SPECS.freq);
   drawGauge("gauge-power-svg",   "gauge-power",   s.power_kw,  GAUGE_SPECS.power);
@@ -192,27 +181,9 @@ function applyBtn(id, isOn, override) {
     active = !!isOn;
   }
   btn.classList.toggle("active", active);
+  // Dot color: green = auto control, gray = manual override active
   const dot = btn.querySelector(".btn-dot");
-  if (dot) dot.style.background = active ? "var(--dot-on)" : "var(--dot-off)";
-}
-
-// ---------------------------------------------------------------------------
-// Fan countdown timer
-// ---------------------------------------------------------------------------
-function tickFanTimer() {
-  const el = document.getElementById("fan-timer");
-  if (!el) return;
-  if (!_fanOverrideExpires) { el.textContent = "5:00 min"; return; }
-  const msLeft = _fanOverrideExpires - Date.now();
-  if (msLeft <= 0) {
-    el.textContent = "5:00 min";
-    _fanOverrideExpires = null;
-    return;
-  }
-  const totalSec = Math.ceil(msLeft / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  el.textContent = `${m}:${String(s).padStart(2, "0")}`;
+  if (dot) dot.style.background = override ? "var(--dot-manual)" : "var(--dot-auto)";
 }
 
 // ---------------------------------------------------------------------------
@@ -261,6 +232,13 @@ async function handleOverrideClick(e) {
       fetchState();
     }
   } catch (err) { console.error("Override toggle failed:", err); }
+}
+
+async function restoreAutoControl() {
+  try {
+    await fetch("/api/overrides", { method: "DELETE" });
+    fetchState();
+  } catch (err) { console.error("Restore auto failed:", err); }
 }
 
 // ---------------------------------------------------------------------------

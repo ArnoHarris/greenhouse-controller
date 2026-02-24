@@ -64,6 +64,17 @@ def ensure_settings(conn):
     conn.commit()
 
 
+def next_10pm_utc():
+    """Return the next 10pm local time as a UTC-aware datetime."""
+    local_now = datetime.now()
+    today_10pm = local_now.replace(hour=22, minute=0, second=0, microsecond=0)
+    if local_now >= today_10pm:
+        next_10pm = today_10pm + timedelta(days=1)
+    else:
+        next_10pm = today_10pm
+    return next_10pm.astimezone(timezone.utc)
+
+
 def load_settings(conn):
     try:
         ensure_settings(conn)
@@ -506,13 +517,16 @@ def api_set_override():
     data = request.json or {}
     actuator = data.get("actuator")
     command = data.get("command", {})
-    duration_minutes = int(data.get("duration_minutes", 120))
 
     if not actuator:
         return jsonify({"error": "actuator required"}), 400
 
     now = datetime.now(timezone.utc)
-    expires_at = now + timedelta(minutes=duration_minutes)
+    # Exhaust fans: 5-minute safety timeout. Everything else: next 10pm local time.
+    if actuator == "fan":
+        expires_at = now + timedelta(minutes=5)
+    else:
+        expires_at = next_10pm_utc()
 
     try:
         conn = get_db()
@@ -566,6 +580,24 @@ def api_cancel_override(actuator):
         conn.execute(
             "UPDATE overrides SET cancelled_at = ? WHERE actuator = ? AND cancelled_at IS NULL",
             (now, actuator),
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/overrides", methods=["DELETE"])
+def api_cancel_all_overrides():
+    """Cancel all active overrides — restores full automatic control."""
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        conn = get_db()
+        ensure_overrides(conn)
+        conn.execute(
+            "UPDATE overrides SET cancelled_at = ? WHERE cancelled_at IS NULL",
+            (now,),
         )
         conn.commit()
         conn.close()

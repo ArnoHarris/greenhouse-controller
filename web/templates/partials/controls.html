@@ -4,15 +4,22 @@
 
   <div class="controls-grid">
 
-    <!-- Spacer row top -->
-    <div class="ctrl-spacer"></div>
+    <!-- Row 1: Legend + Auto Control button -->
+    <div class="auto-control-row">
+      <div class="legend-box">
+        <span class="legend-item"><span class="legend-dot auto-dot"></span>Auto Control On</span>
+        <span class="legend-item"><span class="legend-dot manual-dot"></span>Manual Override</span>
+      </div>
+      <button class="auto-control-btn" id="btn-auto-control" onclick="restoreAutoControl()">
+        AUTO CONTROL
+      </button>
+    </div>
 
-    <!-- Row 1: Shades -->
+    <!-- Row 2: Shades -->
     <button class="ctrl-btn shade-btn" id="btn-shades-east"
             data-actuator="shades_east"
             data-cmd-on='{"position":"closed"}'
-            data-cmd-off='{"position":"open"}'
-            data-duration="120">
+            data-cmd-off='{"position":"open"}'>
       <span class="btn-dot" id="dot-shades-east"></span>
       <span class="btn-label">East Shades</span>
     </button>
@@ -20,33 +27,29 @@
     <button class="ctrl-btn shade-btn" id="btn-shades-west"
             data-actuator="shades_west"
             data-cmd-on='{"position":"closed"}'
-            data-cmd-off='{"position":"open"}'
-            data-duration="120">
+            data-cmd-off='{"position":"open"}'>
       <span class="btn-dot" id="dot-shades-west"></span>
       <span class="btn-label">West Shades</span>
     </button>
 
-    <!-- Row 2: Fans -->
+    <!-- Row 3: Fans -->
     <button class="ctrl-btn fan-btn" id="btn-fan"
             data-actuator="fan"
             data-cmd-on='{"on":true}'
-            data-cmd-off='{"on":false}'
-            data-duration="5">
+            data-cmd-off='{"on":false}'>
       <span class="btn-dot" id="dot-fan"></span>
       <span class="btn-label">Exhaust Fans</span>
-      <span class="btn-sub" id="fan-timer">5:00 min</span>
     </button>
 
     <button class="ctrl-btn fan-btn" id="btn-circ-fans"
             data-actuator="circ_fans"
             data-cmd-on='{"on":true}'
-            data-cmd-off='{"on":false}'
-            data-duration="120">
+            data-cmd-off='{"on":false}'>
       <span class="btn-dot" id="dot-circ-fans"></span>
       <span class="btn-label">Circulating Fans</span>
     </button>
 
-    <!-- Row 3: HVAC — tap setpoint blocks to open tape picker -->
+    <!-- Row 4: HVAC — tap setpoint blocks to open tape picker -->
     <div class="hvac-row">
       <div class="hvac-setpoint heat" id="hvac-heat-block"
            onclick="openTape('heat', this)">
@@ -57,8 +60,7 @@
       <button class="hvac-center ctrl-btn" id="btn-hvac"
               data-actuator="hvac"
               data-cmd-on='{"mode":"auto"}'
-              data-cmd-off='{"mode":"off"}'
-              data-duration="120">
+              data-cmd-off='{"mode":"off"}'>
         <span class="btn-dot" id="dot-hvac"></span>
         <span class="btn-label">HVAC ON/OFF</span>
       </button>
@@ -69,9 +71,6 @@
         <span class="sp-hint">tap to set</span>
       </div>
     </div>
-
-    <!-- Spacer row bottom -->
-    <div class="ctrl-spacer"></div>
 
   </div><!-- /controls-grid -->
 </div><!-- /controls-panel -->

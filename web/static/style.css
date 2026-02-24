@@ -17,6 +17,8 @@
   --cool:         #1e5c8a;
   --dot-on:       #3dd56d;
   --dot-off:      #888888;
+  --dot-auto:     #3dd56d;   /* green  — under automatic control */
+  --dot-manual:   #888888;   /* gray   — manual override active  */
   --accent:       #a8c020;
 
   --radius:       10px;
@@ -205,17 +207,66 @@ body {
 .controls-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: repeat(5, 1fr);
+  grid-template-rows: auto 1fr 1fr 1fr;
   row-gap: 7%;
   column-gap: 7%;
   padding: 0 5%;
   flex: 1;
   min-height: 0;
 }
-.ctrl-spacer {
+
+.auto-control-row {
   grid-column: 1 / -1;
-  visibility: hidden;
-  pointer-events: none;
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.legend-box {
+  flex: 2;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.legend-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.legend-dot.auto-dot   { background: var(--dot-auto); }
+.legend-dot.manual-dot { background: var(--dot-manual); }
+
+.auto-control-btn {
+  flex: 3;
+  background: transparent;
+  border: 2px solid var(--dot-auto);
+  border-radius: 8px;
+  color: var(--dot-auto);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  padding: 10px;
+  transition: border-color 0.2s, color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.auto-control-btn.has-overrides {
+  border-color: var(--panel-border);
+  color: var(--text-muted);
 }
 
 .ctrl-btn {
@@ -246,13 +297,13 @@ body {
   top: 9px; left: 9px;
   width: 10px; height: 10px;
   border-radius: 50%;
-  background: var(--dot-off);
+  background: var(--dot-auto);  /* JS overrides this per-button */
   transition: background 0.2s;
 }
-.ctrl-btn.active .btn-dot { background: var(--dot-on); }
 
 .btn-label { font-size: 20px; font-weight: 500; }
 .btn-sub   { font-size: 14px; color: rgba(255,255,255,0.6); }
+
 
 .hvac-row {
   grid-column: 1 / -1;
@@ -287,8 +338,6 @@ body {
   border-radius: 8px;
 }
 .hvac-center.active { background: var(--btn-active); }
-.hvac-center .btn-dot { background: var(--dot-off); }
-.hvac-center.hvac-running .btn-dot { background: var(--dot-on); }
 
 /* ============================================================
    Tape picker overlay
@@ -539,7 +588,7 @@ body {
   .indoor-temp { font-size: 22px; }
   .indoor-humidity { font-size: 17px; }
 
-  /* Controls panel — compact, no spacers */
+  /* Controls panel — compact */
   .controls-panel { min-height: unset; }
   .controls-grid {
     grid-template-rows: auto;
@@ -547,7 +596,6 @@ body {
     row-gap: 14px;
     column-gap: 14px;
   }
-  .ctrl-spacer { display: none; }
   .btn-label { font-size: 16px; }
   .btn-sub { font-size: 12px; }
   .sp-value { font-size: 18px; }
