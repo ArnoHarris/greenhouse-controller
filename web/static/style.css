@@ -242,7 +242,11 @@ body {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--text);
+}
+
+@media (min-aspect-ratio: 1/1) {
+  .legend-item { font-size: 15px; }
 }
 
 .legend-dot {
@@ -258,17 +262,18 @@ body {
   background: transparent;
   border: 2px solid var(--dot-auto);
   border-radius: 8px;
-  color: var(--text);
+  color: var(--dot-auto);
   font-size: 20px;
   font-weight: 500;
   letter-spacing: 0.5px;
   cursor: pointer;
   padding: 10px;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, color 0.2s;
   -webkit-tap-highlight-color: transparent;
 }
 .auto-control-btn.has-overrides {
   border-color: var(--text);
+  color: var(--text);
 }
 
 .ctrl-btn {
