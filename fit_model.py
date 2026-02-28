@@ -10,15 +10,20 @@ Usage:
     python fit_model.py                    # fit on last 7 days
     python fit_model.py --days 14          # fit on last 14 days
     python fit_model.py --days 7 --quiet   # suppress per-iteration output
+    python fit_model.py --no-hvac          # exclude HVAC-active rows (recommended)
+    python fit_model.py --filter-outliers  # iterative outlier removal (|error|>threshold)
+    python fit_model.py --no-hvac --filter-outliers  # both (cleanest fit)
 
 The script prints suggested config.py values. It does NOT write them
 automatically — review the results and update config.py manually.
 
 Calibration tips:
   - Prefer windows with no shading and no fan overrides (cleaner physics)
+  - Use --no-hvac to exclude minisplit heating/cooling periods (HVAC confounds the fit)
+  - Use --filter-outliers to remove rows where the model can't track (door open, etc.)
   - Run multiple windows and compare; parameters should be stable
   - A positive mean_bias means model runs hot; negative means it runs cold
-    (current complaint: model too cold → expect tau or UA changes)
+  - Watch for parameters hitting their bounds — signals a degenerate fit
 """
 
 import argparse
@@ -52,11 +57,12 @@ def _c_to_f(c): return c * 9 / 5 + 32
 # Data loading
 # ---------------------------------------------------------------------------
 
-def load_sensor_data(days_back=7):
+def load_sensor_data(days_back=7, no_hvac=False):
     """Return list of dicts from sensor_log, sorted by timestamp.
 
     Filters out rows missing any of the four key fields.
-    Uses shades/fan state to flag rows (not excluded — we model them properly).
+    If no_hvac=True, excludes rows where hvac_mode is not 'off' or NULL, plus
+    a 1-row buffer before and after each HVAC period (thermal carry-over).
     """
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days_back)).strftime(
         "%Y-%m-%d %H:%M:%S"
@@ -65,7 +71,8 @@ def load_sensor_data(days_back=7):
     conn.row_factory = sqlite3.Row
     rows = conn.execute(
         """SELECT timestamp, indoor_temp_f, outdoor_temp_f,
-                  solar_irradiance_wm2, shades_east, shades_west, fan_on
+                  solar_irradiance_wm2, shades_east, shades_west, fan_on,
+                  hvac_mode
            FROM sensor_log
            WHERE datetime(timestamp) >= ?
              AND indoor_temp_f IS NOT NULL
@@ -75,8 +82,29 @@ def load_sensor_data(days_back=7):
         (cutoff,),
     ).fetchall()
     conn.close()
+    rows = [dict(r) for r in rows]
     print(f"Loaded {len(rows)} sensor rows (last {days_back} days).")
-    return [dict(r) for r in rows]
+
+    if no_hvac:
+        # Mark rows where HVAC is active
+        hvac_active = [
+            bool(r.get("hvac_mode") and r.get("hvac_mode") not in ("off", None, ""))
+            for r in rows
+        ]
+        # Add 1-row buffer on each side of HVAC periods
+        masked = list(hvac_active)
+        for i in range(len(hvac_active)):
+            if hvac_active[i]:
+                if i > 0:
+                    masked[i - 1] = True
+                if i < len(hvac_active) - 1:
+                    masked[i + 1] = True
+        rows = [r for r, m in zip(rows, masked) if not m]
+        excluded = sum(hvac_active)
+        print(f"  --no-hvac: excluded {excluded} HVAC-active rows "
+              f"(+buffer); {len(rows)} rows remain.")
+
+    return rows
 
 
 # ---------------------------------------------------------------------------
@@ -166,10 +194,13 @@ def simulate(rows, params):
 # ---------------------------------------------------------------------------
 
 # Parameter order: [tau, U_env, log10(C_mass), f_mass, U_ground]
+# Tighter physical bounds than original to prevent degenerate solutions:
+#   U_env floor raised from 2.0 → 3.5 (single-pane glass minimum)
+#   C_mass ceiling lowered from 3e7 → 2e7 J/K (log10 7.5 → 7.3)
 BOUNDS = [
     (0.50, 0.95),    # tau: cover transmittance
-    (2.0,  8.0),     # U_env: W/m²K
-    (6.0,  7.5),     # log10(C_mass): 1e6 to 3e7 J/K
+    (3.5,  8.0),     # U_env: W/m²K (single-pane ≥ 3.5, nominal 5.8)
+    (6.0,  7.3),     # log10(C_mass): 1e6 to 2e7 J/K
     (0.10, 0.80),    # f_mass: fraction solar → mass
     (30.0, 600.0),   # U_ground: W/K
 ]
@@ -232,6 +263,62 @@ def fit(rows, quiet=False):
     return result
 
 
+def fit_with_outlier_removal(rows, threshold=10.0, max_rounds=3, quiet=False):
+    """Iterative fit with outlier removal.
+
+    Fits parameters, computes per-row errors, removes rows where
+    |error| > threshold (°F), then refits. Repeats up to max_rounds times.
+    Stops early if no new outliers are found.
+
+    Args:
+        rows: sensor data rows
+        threshold: °F error above which a row's prediction epoch is dropped
+        max_rounds: maximum number of fit+drop iterations
+        quiet: suppress per-iteration output
+
+    Returns:
+        (result, clean_rows) — final optimizer result and the filtered row set
+    """
+    clean_rows = rows
+    result = None
+
+    for rnd in range(1, max_rounds + 1):
+        print(f"\n--- Outlier removal round {rnd}/{max_rounds} "
+              f"({len(clean_rows)} rows) ---")
+        result = fit(clean_rows, quiet=quiet)
+        p = _unpack(result.x)
+        predicted = simulate(clean_rows, p)
+        actual = np.array([r["indoor_temp_f"] for r in clean_rows[1:]])
+        residuals = predicted - actual
+
+        # rows[1:] correspond to the predicted values; also exclude rows[0]
+        # (no prediction for it) when checking outliers
+        outlier_mask = np.abs(residuals) > threshold
+        n_outliers = int(np.sum(outlier_mask))
+
+        if n_outliers == 0:
+            print(f"  No outliers above {threshold}°F — stopping early.")
+            break
+
+        # Drop the outlier prediction targets (rows[1:] positions) plus
+        # their preceding row (which seeds that integration segment)
+        drop_indices = set()
+        for idx in np.where(outlier_mask)[0]:
+            drop_indices.add(idx)      # rows[1:][idx] = rows[idx+1]
+            drop_indices.add(idx + 1)  # the actual row
+        # Convert back to indices in clean_rows
+        keep = [
+            i for i in range(len(clean_rows))
+            if i not in drop_indices
+        ]
+        removed = len(clean_rows) - len(keep)
+        clean_rows = [clean_rows[i] for i in keep]
+        print(f"  Removed {removed} outlier rows (>{threshold}°F); "
+              f"{len(clean_rows)} rows remain.")
+
+    return result, clean_rows
+
+
 # ---------------------------------------------------------------------------
 # Diagnostics
 # ---------------------------------------------------------------------------
@@ -287,9 +374,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fit greenhouse thermal model parameters")
     parser.add_argument("--days", type=int, default=7, help="Days of history to use (default: 7)")
     parser.add_argument("--quiet", action="store_true", help="Suppress per-iteration output")
+    parser.add_argument("--no-hvac", action="store_true",
+                        help="Exclude rows where HVAC is active (recommended for cleaner fits)")
+    parser.add_argument("--filter-outliers", action="store_true",
+                        help="Iteratively remove rows with |error| > threshold, then refit")
+    parser.add_argument("--outlier-threshold", type=float, default=10.0,
+                        help="°F error threshold for outlier removal (default: 10)")
     args = parser.parse_args()
 
-    rows = load_sensor_data(days_back=args.days)
+    rows = load_sensor_data(days_back=args.days, no_hvac=args.no_hvac)
     if len(rows) < 50:
         print(f"ERROR: Only {len(rows)} rows — need at least 50 for a meaningful fit.")
         sys.exit(1)
@@ -300,5 +393,13 @@ if __name__ == "__main__":
     print(f"Solar range: {min(r['solar_irradiance_wm2'] for r in rows):.0f} – "
           f"{max(r['solar_irradiance_wm2'] for r in rows):.0f} W/m²")
 
-    result = fit(rows, quiet=args.quiet)
+    if args.filter_outliers:
+        result, rows = fit_with_outlier_removal(
+            rows,
+            threshold=args.outlier_threshold,
+            quiet=args.quiet,
+        )
+    else:
+        result = fit(rows, quiet=args.quiet)
+
     report(result, rows)
