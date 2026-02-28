@@ -671,6 +671,45 @@ function initDiagnosticPage() {
   fetchState();
   loadDiagCharts();
   loadDiagPowerChart();
+  loadShadeBattery();
+}
+
+async function loadShadeBattery() {
+  const tbody = document.getElementById("shade-battery-body");
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" class="shade-battery-loading">Loading…</td></tr>';
+  try {
+    const res  = await fetch("/api/shade_battery");
+    const data = await res.json();
+    if (data.error) {
+      tbody.innerHTML = `<tr><td colspan="6" class="shade-battery-loading">Error: ${data.error}</td></tr>`;
+      return;
+    }
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="shade-battery-loading">No blinds found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(b => {
+      if (b.error) {
+        return `<tr><td colspan="2">${b.mac}</td><td colspan="4" class="shade-battery-loading">Error: ${b.error}</td></tr>`;
+      }
+      const bat     = b.battery  != null ? `${b.battery}%`   : "—";
+      const batStyle = b.battery != null && b.battery < 20 ? " style='color:#e06030'" : "";
+      const pos     = b.position != null ? `${b.position}%`  : "—";
+      const rssi    = b.rssi     != null ? `${b.rssi} dBm`   : "—";
+      const type    = b.type || "—";
+      return `<tr>
+        <td>${b.group}</td>
+        <td class="shade-mac">${b.mac}</td>
+        <td>${type}</td>
+        <td>${pos}</td>
+        <td${batStyle}>${bat}</td>
+        <td>${rssi}</td>
+      </tr>`;
+    }).join("");
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" class="shade-battery-loading">Failed: ${e.message}</td></tr>`;
+  }
 }
 
 function loadDiagCharts() {

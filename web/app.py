@@ -16,10 +16,23 @@ import config
 from devices.shelly_relay import ShellyRelay
 from devices.kasa_switch import KasaSwitch
 from devices.shelly_3em import Shelly3EM
+from devices.shades import ShadesController
 
 exhaust_fan_relay = ShellyRelay(config.SHELLY_RELAY_IP, name="exhaust_fans")
 circ_fan_switch   = KasaSwitch(config.KASA_CIRC_FANS_IP)
 shelly_3em        = Shelly3EM(config.SHELLY_3EM_IP)
+
+shades_controller = ShadesController(
+    config.MOTION_GATEWAY_IP,
+    os.getenv("MOTION_GATEWAY_KEY", ""),
+    config.SHADES_EAST_MACS,
+    config.SHADES_WEST_MACS,
+)
+try:
+    shades_controller.connect()
+    print("Shades controller connected", flush=True)
+except Exception as _e:
+    print(f"Shades controller connect failed at startup (will retry on command): {_e}", flush=True)
 
 _live_power_cache = {"data": None, "ts": 0.0}
 
@@ -590,6 +603,23 @@ def api_set_override():
             except Exception as exc:
                 device_error = str(exc)
                 print(f"Circ fan command failed: {exc}", flush=True)
+        elif actuator in ("shades_east", "shades_west"):
+            try:
+                if shades_controller._gateway is None:
+                    shades_controller.connect()
+                if actuator == "shades_east":
+                    if command.get("position") == "closed":
+                        shades_controller.close_east()
+                    else:
+                        shades_controller.open_east()
+                else:
+                    if command.get("position") == "closed":
+                        shades_controller.close_west()
+                    else:
+                        shades_controller.open_west()
+            except Exception as exc:
+                device_error = str(exc)
+                print(f"Shade command failed ({actuator}): {exc}", flush=True)
 
         result = {"ok": True, "expires_at": expires_at.isoformat()}
         if device_error:
@@ -691,6 +721,36 @@ def api_cancel_all_overrides():
 # ---------------------------------------------------------------------------
 # API: settings (HVAC setpoints)
 # ---------------------------------------------------------------------------
+
+@app.route("/api/shade_battery")
+def api_shade_battery():
+    """Return current battery, position, and RSSI for each shade blind."""
+    try:
+        if shades_controller._gateway is None:
+            shades_controller.connect()
+        east_set = set(config.SHADES_EAST_MACS)
+        west_set  = set(config.SHADES_WEST_MACS)
+        blinds = []
+        for mac, blind in shades_controller._gateway.device_list.items():
+            try:
+                blind.Update()
+            except Exception as e:
+                blinds.append({"mac": mac, "error": str(e)})
+                continue
+            group = "east" if mac in east_set else ("west" if mac in west_set else "unknown")
+            blinds.append({
+                "mac": mac,
+                "group": group,
+                "type": str(blind.blind_type) if blind.blind_type else None,
+                "position": blind.position,
+                "battery": blind.battery_level,
+                "rssi": blind.RSSI,
+            })
+        blinds.sort(key=lambda b: (b.get("group", ""), b.get("mac", "")))
+        return jsonify(blinds)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 503
+
 
 @app.route("/api/settings", methods=["POST"])
 def api_set_settings():

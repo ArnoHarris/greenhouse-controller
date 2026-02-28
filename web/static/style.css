@@ -517,6 +517,34 @@ body {
 .diag-panel-tall { min-height: 200px; }
 .chart-wrap-full { flex: 1; min-height: 200px; }
 
+.shade-battery-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin-top: 10px;
+}
+.shade-battery-table th {
+  text-align: left;
+  color: var(--text-dim);
+  font-weight: 400;
+  padding: 4px 12px 6px 0;
+  border-bottom: 1px solid #555;
+}
+.shade-battery-table td {
+  padding: 6px 12px 6px 0;
+  border-bottom: 1px solid #444;
+  color: var(--text);
+}
+.shade-battery-table .shade-mac {
+  font-family: monospace;
+  font-size: 13px;
+}
+.shade-battery-loading {
+  color: var(--text-dim);
+  font-style: italic;
+  padding: 10px 0;
+}
+
 .diag-stats-inline { display: flex; gap: 24px; }
 .diag-stat { font-size: 14px; color: var(--text-muted); }
 .diag-stat strong { color: var(--text); }

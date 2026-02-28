@@ -84,6 +84,25 @@
     </div>
   </div>
 
+
+  <!-- 6. Shade battery -->
+  <div class="panel diag-panel">
+    <div class="panel-title" style="display:flex;align-items:center;gap:12px;">
+      shade battery &amp; status
+      <button class="date-nav-btn" onclick="loadShadeBattery()" title="Refresh">&#8635;</button>
+    </div>
+    <table class="shade-battery-table" id="shade-battery-table">
+      <thead>
+        <tr>
+          <th>Group</th><th>MAC</th><th>Type</th><th>Position</th><th>Battery</th><th>RSSI</th>
+        </tr>
+      </thead>
+      <tbody id="shade-battery-body">
+        <tr><td colspan="6" class="shade-battery-loading">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
 </div>
 {% endblock %}
 
