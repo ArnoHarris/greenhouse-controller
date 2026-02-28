@@ -8,7 +8,10 @@ import time
 import traceback
 from datetime import datetime, timezone, timedelta
 
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify
+
+load_dotenv()
 
 # Add project root to path so we can import config
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
