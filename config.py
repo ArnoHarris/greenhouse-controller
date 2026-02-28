@@ -76,10 +76,10 @@ GREENHOUSE = {
     "volume_m3": 125.3,                 # 4,426 ft³ measured
 
     # Glazing
-    "cover_transmittance": 0.82,        # 6mm single-pane tempered glass
+    "cover_transmittance": 0.82,        # 6mm single-pane tempered glass (nominal; kept — fit unreliable until H&T sensor is shielded)
 
     # Envelope (outdoor-exposed surfaces only)
-    "envelope_U_W_per_m2K": 5.8,        # single-pane glass U-value
+    "envelope_U_W_per_m2K": 5.0,        # single-pane nominal 5.8; mild reduction for flower shed buffer + lower infiltration than worst-case
     "envelope_area_m2": 104.7,          # roof (49.6) + side walls (41.0) + south gable (14.2)
     #   East roof face:  29' x 9.20' = 266.8 ft² = 24.8 m²
     #   West roof face:  29' x 9.20' = 266.8 ft² = 24.8 m²
@@ -93,14 +93,14 @@ GREENHOUSE = {
 
     # Thermal capacitance
     "air_heat_capacity_J_per_K": 151200.0,    # rho * c_p * V = 1.2 * 1006 * 125.3
-    "mass_heat_capacity_J_per_K": 10000000.0, # concrete perimeter + floor + gravel beds
+    "mass_heat_capacity_J_per_K": 15000000.0, # concrete perimeter + floor + gravel beds (interim estimate; refit after H&T shielded)
     #   Concrete perimeter wall (active 10cm): ~3,300,000 J/K
     #   Concrete floor center (~1/3 area):     ~2,700,000 J/K
     #   Gravel beds (~2/3 area, 15cm deep):    ~5,000,000 J/K
-    "mass_solar_fraction": 0.40,        # fraction of solar absorbed by thermal mass
+    "mass_solar_fraction": 0.52,        # fraction of solar absorbed by thermal mass (fit found 0.56; conservative midpoint)
 
     # Coupling
-    "ground_coupling_W_per_K": 150.0,   # air ↔ thermal mass (floor + perimeter ~56 m², ~5 W/m²K effective)
+    "ground_coupling_W_per_K": 220.0,   # air ↔ thermal mass (fit found 291; conservative midpoint pending re-fit)
 
     # Ventilation
     "fan_flow_m3_per_s": 0.944,         # 2x 14" exhaust fans, ~2000 cfm total
