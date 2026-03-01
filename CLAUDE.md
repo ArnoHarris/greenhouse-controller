@@ -40,6 +40,10 @@ Rule-based control informed by predictions — not full MPC optimization.
     config.py              # setpoints, device IPs, tuning params, controller constants
     .env                   # API keys, passwords (NOT in git, loaded via python-dotenv)
     logger.py              # data logging to SQLite
+    # Utility/migration scripts (not part of control loop):
+    fix_forecast_timezone.py    # one-off: converted forecast_log times to UTC (Feb 2026, applied)
+    fix_historical_actuators.py # one-off: backfilled actuator state in sensor_log
+    test_shades.py              # manual shade command test
     devices/
         shelly_ht.py       # Shelly H&T sensor reads (MQTT primary, cloud fallback)
         shelly_relay.py    # Shelly Plus 1 PM relay commands (exhaust fans)
@@ -80,7 +84,8 @@ class GreenhouseState:
     fan_on: bool
     circ_fans_on: bool
     hvac_mode: str            # "off", "cool", "heat", "auto"
-    hvac_setpoint: float
+    hvac_setpoint: float      # commanded setpoint sent TO the minisplit unit (°F); distinct from
+                              # heat_setpoint/cool_setpoint in settings (those are greenhouse bounds)
     timestamp: datetime
 ```
 
@@ -102,6 +107,16 @@ See `docs/hardware.md` for device-specific details (IPs, topics, API endpoints, 
 ## Tech Stack
 
 Python 3 · Flask · SQLite (WAL mode) · Chart.js · paho-mqtt · python-dotenv · requests · motionblinds · python-kasa · Mosquitto (MQTT broker on Pi) · ESPHome (ESP32 firmware, planned)
+
+## Key Design Decisions
+
+**Forecast timezone:** Open-Meteo is requested with `timezone="UTC"` and `forecast_days=2`. All forecast time strings are UTC (e.g. `"2026-02-28T23:00"`). Dashboard chart timestamps have `"Z"` appended so the browser renders them in local time. Do not switch back to `timezone="auto"` — it breaks forecast-to-sensor matching on a UTC Pi.
+
+**Settings keys:** DB `settings` table stores `heat_setpoint` (minimum allowed indoor temp, °F) and `cool_setpoint` (maximum allowed indoor temp, °F). The controller compares the thermal model's *predicted indoor temperature* against these bounds to decide which actuators to deploy — they govern the whole control system, not just HVAC. Previously named `hvac_heat_setpoint`/`hvac_cool_setpoint` — renamed Feb 2026; migration in `web/app.py:ensure_settings()`.
+
+**Actuator state logging:** `controller.apply_override_states(state, db_path)` runs each cycle before logging. It reads active overrides from the DB and stamps commanded positions onto `state`, so `sensor_log` reflects true device state even when the controller skips overridden actuators.
+
+**Override behavior:** Dashboard overrides bypass the controller for the named actuator. Expiry rules: exhaust fans ON → 5-minute timer; all others (fans OFF, shades) → next 10pm local time (`next_10pm_utc()`). Override status persists until user clicks Auto Control (`DELETE /api/overrides`); cancel a single override: `DELETE /api/override/<actuator>`. While a fan timer runs, the button shows an inline countdown; when it expires, JS auto-posts `{on: false}` to keep the override status active.
 
 ## Coding Conventions
 

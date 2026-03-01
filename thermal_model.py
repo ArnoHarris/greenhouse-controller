@@ -13,7 +13,7 @@ Exhaust fans pull air from south through flower shed via north louver vents.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import config
 
@@ -177,6 +177,12 @@ def predict(state, forecast, horizon_hours=None):
 def _interpolate_forecast(forecast, steps, dt):
     """Linearly interpolate hourly forecast to per-minute values.
 
+    The forecast array starts at a fixed UTC time (e.g. midnight or the fetch
+    hour of the previous day). We calculate how many hours have elapsed since
+    that start and offset all array lookups accordingly, so the model always
+    uses conditions that correspond to the current moment and forward — not
+    stale data from the beginning of the forecast window.
+
     Returns (outdoor_temps_c, solar_vals, wind_vals) as lists with one
     entry per integration step.
     """
@@ -184,19 +190,34 @@ def _interpolate_forecast(forecast, steps, dt):
     hourly_temp_f = forecast.get("temperature_f", [])
     hourly_solar = forecast.get("solar_irradiance_wm2", [])
     hourly_wind = forecast.get("wind_speed_mph", [])
+    forecast_times = forecast.get("time", [])
 
     n_hourly = len(hourly_temp_f)
     steps_per_hour = int(3600 / dt)
+
+    # Determine how many hours into the forecast array "now" falls.
+    # forecast_times entries are naive UTC strings (e.g. "2026-02-27T08:00").
+    hour_offset = 0
+    if forecast_times:
+        try:
+            first_time = datetime.fromisoformat(forecast_times[0])
+            now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+            elapsed_hours = (now_utc - first_time).total_seconds() / 3600
+            hour_offset = max(0, int(elapsed_hours))
+            log.debug("Forecast hour offset: %d (forecast starts %s, now %s)",
+                      hour_offset, forecast_times[0], now_utc.isoformat(timespec="minutes"))
+        except Exception as e:
+            log.warning("Could not compute forecast hour offset: %s", e)
 
     outdoor_temps_c = []
     solar_vals = []
     wind_vals = []
 
     for i in range(steps):
-        # Which hourly bucket does this step fall in?
+        # Which hourly bucket does this step fall in, relative to now?
         hour_float = i / steps_per_hour
-        hour_idx = int(hour_float)
-        frac = hour_float - hour_idx
+        hour_idx = int(hour_float) + hour_offset
+        frac = hour_float - int(hour_float)
 
         if hour_idx + 1 < n_hourly:
             # Linear interpolation between this hour and next
