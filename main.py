@@ -215,6 +215,10 @@ def main():
                 state.fan_on      = last_act["fan_on"]
                 state.hvac_mode   = last_act["hvac_mode"]
 
+            # Override active manual commands on top — ensures sensor_log reflects
+            # the commanded position even when the controller skips overridden actuators.
+            controller.apply_override_states(state, config.DB_PATH)
+
             # 1c. Compare previous prediction against actual (model accuracy tracking)
             if prev_prediction is not None and state.indoor_temp is not None:
                 logger.log_model_accuracy(

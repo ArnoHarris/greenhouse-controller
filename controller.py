@@ -8,6 +8,7 @@ HVAC is predictive and is the last resort; commands are logged but not sent
 until devices/minisplit.py is implemented.
 """
 
+import json
 import sqlite3
 import logging
 from datetime import datetime
@@ -47,6 +48,40 @@ def get_active_overrides(db_path):
         return {r[0] for r in rows}
     except Exception:
         return set()
+
+
+def apply_override_states(state, db_path):
+    """Apply active override commands to state so sensor_log reflects manual positions.
+
+    When an actuator is under override, controller.execute() skips it, so
+    state.shades_east/west/fan_on would otherwise stay at their restored
+    (possibly stale) values and be logged incorrectly.
+
+    Maps override actuator names and commands to GreenhouseState fields:
+      shades_east: {"position": "open"|"closed"}  → state.shades_east
+      shades_west: {"position": "open"|"closed"}  → state.shades_west
+      fan:         {"on": true|false}              → state.fan_on
+    """
+    try:
+        conn = sqlite3.connect(db_path)
+        rows = conn.execute(
+            "SELECT actuator, command FROM overrides "
+            "WHERE expires_at > datetime('now') AND cancelled_at IS NULL"
+        ).fetchall()
+        conn.close()
+        for actuator, command_json in rows:
+            try:
+                cmd = json.loads(command_json)
+                if actuator == "shades_east":
+                    state.shades_east = cmd.get("position", state.shades_east)
+                elif actuator == "shades_west":
+                    state.shades_west = cmd.get("position", state.shades_west)
+                elif actuator == "fan":
+                    state.fan_on = bool(cmd.get("on", state.fan_on))
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------
