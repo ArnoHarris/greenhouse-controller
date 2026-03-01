@@ -64,7 +64,6 @@ updateClock();
 // State polling
 // ---------------------------------------------------------------------------
 let _lastState = null;
-let _fanOverrideExpires = null;   // Date when the fan ON-override expires (null = not counting)
 
 function startDashboardPolling() {
   async function poll() {
@@ -138,22 +137,6 @@ function applyState(s) {
     img.src = `/static/images/${imgName}.png`;
   }
 
-  // Sync fan countdown from server override (restores timer on page reload mid-countdown)
-  const fanOv = overrides["fan"];
-  if (fanOv) {
-    const fanCmd = tryParseCmd(fanOv.command);
-    if (fanCmd.on === true && fanOv.expires_at) {
-      _fanOverrideExpires = new Date(fanOv.expires_at);
-    } else {
-      // Fan is in "override off" state — no countdown, just show Override dot
-      _fanOverrideExpires = null;
-      setText("fan-timer", "");
-    }
-  } else {
-    _fanOverrideExpires = null;
-    setText("fan-timer", "");
-  }
-
   // Control buttons
   applyBtn("btn-shades-east", s.shades_east === "closed", overrides["shades_east"]);
   applyBtn("btn-shades-west", s.shades_west === "closed", overrides["shades_west"]);
@@ -216,31 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("pointermove",   tapeDragMove);
   document.addEventListener("pointerup",     tapeDragEnd);
   document.addEventListener("pointercancel", tapeDragEnd);
-  setInterval(_fanTimerTick, 1000);
 });
-
-// Countdown ticker for exhaust fan 5-minute override.
-// Runs every second. When the override expires, automatically posts an
-// "off" override so the button stays in Override (manual) status until
-// the user explicitly hits Auto Control.
-function _fanTimerTick() {
-  if (!_fanOverrideExpires) return;
-  const remaining = _fanOverrideExpires - Date.now();
-  if (remaining <= 0) {
-    _fanOverrideExpires = null;
-    setText("fan-timer", "");
-    // Lock fan off in Override status — persists until user hits Auto Control
-    fetch("/api/override", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actuator: "fan", command: { on: false }, duration_minutes: 120 }),
-    }).then(() => fetchState()).catch(() => {});
-  } else {
-    const mins = Math.floor(remaining / 60000);
-    const secs = Math.floor((remaining % 60000) / 1000);
-    setText("fan-timer", `- ${mins}:${secs.toString().padStart(2, "0")}`);
-  }
-}
 
 async function handleOverrideClick(e) {
   const btn       = e.currentTarget;
@@ -265,16 +224,6 @@ async function handleOverrideClick(e) {
       btn.classList.toggle("active", newActive);
       const dot = btn.querySelector(".btn-dot");
       if (dot) dot.style.background = "var(--dot-manual)";
-      if (actuator === "fan") {
-        if (newActive && data.expires_at) {
-          // Fan just turned on — start countdown immediately
-          _fanOverrideExpires = new Date(data.expires_at);
-        } else {
-          // Fan turned off manually — clear countdown; stay in override (no timer)
-          _fanOverrideExpires = null;
-          setText("fan-timer", "");
-        }
-      }
       fetchState();
     }
   } catch (err) { console.error("Override toggle failed:", err); }

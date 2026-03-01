@@ -269,7 +269,7 @@ def main():
                     state, trajectory, trajectory_open,
                     heat_sp, cool_sp, overridden, corrected_forecast,
                 )
-                controller.execute(decisions, state, shades_ctrl, exhaust_fan_relay)
+                controller.execute(decisions, state, shades_ctrl, exhaust_fan_relay, kasa_circ_fans)
 
             # 5. Log everything (after controller so sensor_log reflects commanded state)
             logger.log_sensors(state)

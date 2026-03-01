@@ -1,9 +1,11 @@
 """Rule-based greenhouse control logic.
 
-Priority: shades → exhaust fans → HVAC (stub).
+Priority: shades → exhaust fans → HVAC (stub). Circulating fans default ON.
 
 Shades are deployed predictively using the 2-hour thermal model forecast.
 Exhaust fans are reactive and only run when outdoor air is cool enough to help.
+Circulating fans default to ON under auto control; forced OFF whenever exhaust
+fans are running (prevents cross-flow interference).
 HVAC is predictive and is the last resort; commands are logged but not sent
 until devices/minisplit.py is implemented.
 """
@@ -61,6 +63,7 @@ def apply_override_states(state, db_path):
       shades_east: {"position": "open"|"closed"}  → state.shades_east
       shades_west: {"position": "open"|"closed"}  → state.shades_west
       fan:         {"on": true|false}              → state.fan_on
+      circ_fans:   {"on": true|false}              → state.circ_fans_on
     """
     try:
         conn = sqlite3.connect(db_path)
@@ -78,6 +81,8 @@ def apply_override_states(state, db_path):
                     state.shades_west = cmd.get("position", state.shades_west)
                 elif actuator == "fan":
                     state.fan_on = bool(cmd.get("on", state.fan_on))
+                elif actuator == "circ_fans":
+                    state.circ_fans_on = bool(cmd.get("on", state.circ_fans_on))
             except Exception:
                 pass
     except Exception:
@@ -157,6 +162,7 @@ def decide(state, trajectory_current, trajectory_shades_open,
         Possible values:
           shades_east/west: "open" | "closed"
           fan: True | False
+          circ_fans: True | False
           hvac: "off" | "heat" | "cool"   (hvac is a stub — logged, not executed)
     """
     decisions = {}
@@ -199,6 +205,17 @@ def decide(state, trajectory_current, trajectory_shades_open,
             decisions["fan"] = False
         # else: hold current state
 
+    # --- Circulating fans ---
+    # Invariant: never on when exhaust fans are running (prevents cross-flow).
+    # Under auto control, default to ON when exhaust fans are off.
+    # When exhaust fans are on, force circ fans OFF even if manually overridden.
+    fan_will_be_on = decisions.get("fan", state.fan_on)
+    if fan_will_be_on:
+        decisions["circ_fans"] = False
+    elif "circ_fans" not in overridden:
+        decisions["circ_fans"] = True
+    # else: exhaust off, circ fans overridden — respect the override
+
     # --- HVAC (predictive, stub) ---
     # Heating: predicted min will drop below heat setpoint.
     # Cooling: predicted max exceeds cool setpoint but fans are not effective.
@@ -220,12 +237,12 @@ def decide(state, trajectory_current, trajectory_shades_open,
 # Command execution
 # ---------------------------------------------------------------------------
 
-def execute(decisions, state, shades_controller, exhaust_fan_relay):
+def execute(decisions, state, shades_controller, exhaust_fan_relay, circ_fan_switch):
     """Execute device commands for the decisions returned by decide().
 
     Only sends a command when the desired state differs from current state.
-    Updates state.shades_east/west and state.fan_on after each command so
-    sensor_log captures the new state in the same cycle.
+    Updates state fields after each command so sensor_log captures the new
+    state in the same cycle.
 
     HVAC is a stub: the decision is logged but no device command is sent.
     Each command is individually try/excepted so one failure doesn't block others.
@@ -258,6 +275,15 @@ def execute(decisions, state, shades_controller, exhaust_fan_relay):
                         exhaust_fan_relay.turn_off()
                     state.fan_on = desired
                     log.info("[controller] Exhaust fans → %s", "on" if desired else "off")
+
+            elif actuator == "circ_fans":
+                if desired != state.circ_fans_on:
+                    if desired:
+                        circ_fan_switch.turn_on()
+                    else:
+                        circ_fan_switch.turn_off()
+                    state.circ_fans_on = desired
+                    log.info("[controller] Circ fans → %s", "on" if desired else "off")
 
             elif actuator == "hvac":
                 # Stub: log decision only — no command sent until minisplit.py is built

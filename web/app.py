@@ -578,12 +578,7 @@ def api_set_override():
         return jsonify({"error": "actuator required"}), 400
 
     now = datetime.now(timezone.utc)
-    # Exhaust fans ON: 5-minute safety timeout.
-    # Exhaust fans OFF (or any other actuator): until next 10pm local time.
-    if actuator == "fan" and command.get("on", True):
-        expires_at = now + timedelta(minutes=5)
-    else:
-        expires_at = next_10pm_utc()
+    expires_at = next_10pm_utc()
 
     try:
         conn = get_db()

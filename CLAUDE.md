@@ -116,7 +116,9 @@ Python 3 · Flask · SQLite (WAL mode) · Chart.js · paho-mqtt · python-dotenv
 
 **Actuator state logging:** `controller.apply_override_states(state, db_path)` runs each cycle before logging. It reads active overrides from the DB and stamps commanded positions onto `state`, so `sensor_log` reflects true device state even when the controller skips overridden actuators.
 
-**Override behavior:** Dashboard overrides bypass the controller for the named actuator. Expiry rules: exhaust fans ON → 5-minute timer; all others (fans OFF, shades) → next 10pm local time (`next_10pm_utc()`). Override status persists until user clicks Auto Control (`DELETE /api/overrides`); cancel a single override: `DELETE /api/override/<actuator>`. While a fan timer runs, the button shows an inline countdown; when it expires, JS auto-posts `{on: false}` to keep the override status active.
+**Override behavior:** Dashboard overrides bypass the controller for the named actuator. All overrides expire at next 10pm local time (`next_10pm_utc()`). Override status persists until user clicks Auto Control (`DELETE /api/overrides`); cancel a single override: `DELETE /api/override/<actuator>`.
+
+**Circulating fan control:** Circ fans default ON under auto control. The controller enforces a hard invariant: circ fans are always OFF when exhaust fans are on (even if circ fans are manually overridden ON). When exhaust fans turn off and circ fans have no active override, controller turns circ fans back ON. If circ fans were manually overridden OFF before exhaust turned on, that override persists when exhaust turns off (stay OFF until override expires at 10pm or Auto Control is restored).
 
 ## Coding Conventions
 
