@@ -316,7 +316,7 @@ body {
 .btn-label { font-size: 20px; font-weight: 500; }
 .label-short { display: none; }
 .btn-sub   { font-size: 14px; color: rgba(255,255,255,0.6); }
-.btn-timer { font-size: 14px; color: rgba(255,255,255,0.65); }
+.btn-timer { font-size: 20px; font-weight: 500; }
 
 
 .hvac-row {

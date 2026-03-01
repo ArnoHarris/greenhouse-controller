@@ -238,7 +238,7 @@ function _fanTimerTick() {
   } else {
     const mins = Math.floor(remaining / 60000);
     const secs = Math.floor((remaining % 60000) / 1000);
-    setText("fan-timer", `— ${mins}:${secs.toString().padStart(2, "0")}`);
+    setText("fan-timer", `- ${mins}:${secs.toString().padStart(2, "0")}`);
   }
 }
 
