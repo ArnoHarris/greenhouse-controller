@@ -11,7 +11,7 @@ until devices/minisplit.py is implemented.
 import json
 import sqlite3
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 import config
 
@@ -123,7 +123,7 @@ def _minutes_to_sunset(corrected_forecast):
         if is_day[i - 1] == 1 and is_day[i] == 0 and i < len(times):
             try:
                 sunset_hour = datetime.fromisoformat(times[i])
-                return (sunset_hour - datetime.now()).total_seconds() / 60
+                return (sunset_hour - datetime.now(timezone.utc).replace(tzinfo=None)).total_seconds() / 60
             except Exception:
                 return None
     return None

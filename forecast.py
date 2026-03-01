@@ -1,7 +1,7 @@
 """Open-Meteo forecast retrieval and bias correction."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 import requests
 import config
@@ -29,8 +29,8 @@ def fetch_forecast():
         ]),
         "temperature_unit": "fahrenheit",
         "wind_speed_unit": "mph",
-        "forecast_days": 1,
-        "timezone": "auto",
+        "forecast_days": 2,
+        "timezone": "UTC",
     }
 
     resp = requests.get(config.OPEN_METEO_BASE_URL, params=params,
@@ -69,7 +69,7 @@ def apply_bias_correction(forecast, station_reading):
     Returns:
         Corrected forecast dict (same structure, shifted values).
     """
-    now = datetime.now()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     current_hour = now.strftime("%Y-%m-%dT%H:00")
 
     # Find the index of the current hour in the forecast
@@ -122,7 +122,7 @@ def get_current_conditions_from_forecast(forecast):
 
     Used as fallback when AmbientWeather station is unavailable.
     """
-    now = datetime.now()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     current_hour = now.strftime("%Y-%m-%dT%H:00")
 
     try:

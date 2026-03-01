@@ -280,7 +280,7 @@ def _extract_forecast_summary(fc):
         temps   = fc.get("temperature_f", [])
         codes   = fc.get("weather_code", [])
         is_day  = fc.get("is_day", [])
-        now = datetime.now()  # local time — forecast uses timezone: "auto" (local)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)  # forecast uses timezone: "UTC"
 
         def find_idx(offset_h):
             target = now + timedelta(hours=offset_h)
@@ -462,7 +462,7 @@ def api_solar_forecast():
             except Exception:
                 pass
         forecast_pts = [
-            {"timestamp": t, "solar_wm2": v}
+            {"timestamp": t + "Z", "solar_wm2": v}
             for t, v in sorted(forecast_map.items())
         ]
 
