@@ -279,6 +279,31 @@ def get_model_rmse(hours_back=24):
     }
 
 
+def get_last_actuator_state():
+    """Return dict with shades_east, shades_west, fan_on, hvac_mode from the last sensor_log row.
+
+    Used by main.py to restore actuator state at the start of each cycle so the thermal
+    model uses the correct shade/fan/HVAC state rather than dataclass defaults.
+    Returns None if the table is empty or on any error.
+    """
+    try:
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT shades_east, shades_west, fan_on, hvac_mode "
+            "FROM sensor_log ORDER BY rowid DESC LIMIT 1"
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "shades_east": row[0] or "open",
+            "shades_west": row[1] or "open",
+            "fan_on": bool(row[2]) if row[2] is not None else False,
+            "hvac_mode": row[3] or "off",
+        }
+    except Exception:
+        return None
+
+
 def close():
     global _conn
     if _conn:

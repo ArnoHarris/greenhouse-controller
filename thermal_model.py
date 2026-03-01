@@ -58,10 +58,14 @@ def predict(state, forecast, horizon_hours=None):
     # Thermal mass assumed close to air temp initially (no separate sensor)
     T_mass = T_air
 
-    # Current actuator state (data collection phase: no actuators active)
+    # Current actuator state
     shade_east = 1.0 if state.shades_east == "closed" else 0.0
     shade_west = 1.0 if state.shades_west == "closed" else 0.0
     fan_on = state.fan_on if state.fan_on is not None else False
+    hvac_mode = (state.hvac_mode or "off") if state.hvac_mode is not None else "off"
+    Q_hvac = (config.HVAC_CAPACITY_W if hvac_mode == "heat"
+              else -config.HVAC_CAPACITY_W if hvac_mode == "cool"
+              else 0.0)
 
     # Build interpolated outdoor conditions from hourly forecast
     outdoor_temps_c, solar_vals, wind_vals = _interpolate_forecast(
@@ -132,8 +136,8 @@ def predict(state, forecast, horizon_hours=None):
         # Ground/mass exchange (W)
         Q_ground = U_ground * (T_air - T_mass)
 
-        # Air node energy balance
-        dT_air = (Q_solar_air - Q_envelope - Q_vent - Q_ground) / C_air * dt
+        # Air node energy balance (Q_hvac = 0 until minisplit.py is implemented)
+        dT_air = (Q_solar_air - Q_envelope - Q_vent - Q_ground + Q_hvac) / C_air * dt
         T_air += dT_air
 
         # Thermal mass energy balance
@@ -158,6 +162,8 @@ def predict(state, forecast, horizon_hours=None):
         "shade_west": shade_west,
         "fan_on": fan_on,
         "fan_flow_m3s": fan_flow,
+        "hvac_mode": hvac_mode,
+        "hvac_capacity_w": config.HVAC_CAPACITY_W,
     }
 
     return {

@@ -1,9 +1,16 @@
-"""Greenhouse controller — data collection phase.
+"""Greenhouse controller — predictive climate control.
 
-Reads sensors, fetches forecasts, runs thermal model predictions, and logs
-everything to SQLite. No actuator control yet.
+Each 5-minute cycle:
+  1. Read sensors (indoor temp/humidity, outdoor conditions, circulating fans)
+  2. Restore last-cycle actuator state so the thermal model uses the correct inputs
+  3. Fetch and bias-correct the Open-Meteo forecast
+  4. Run thermal model twice: once with current state, once with shades forced open
+  5. Apply rule-based control (shades → fans → HVAC stub) via controller.py
+  6. Log sensor state (now reflects any actuator commands issued in step 5)
+  7. Log power meter readings
 """
 
+import copy
 import os
 import logging
 import time
@@ -16,12 +23,15 @@ load_dotenv()
 import paho.mqtt.client as mqtt
 
 import config
+import controller
 import forecast
 import logger
 import thermal_model
 from resilience import retry_with_fallback, get_health
 from state import GreenhouseState
 from devices.shelly_ht import ShellyHT
+from devices.shelly_relay import ShellyRelay
+from devices.shades import ShadesController
 from devices.weather_station import WeatherStation
 from devices.kasa_switch import KasaSwitch
 from devices.shelly_3em import Shelly3EM
@@ -155,13 +165,27 @@ def fill_state_from_forecast(state, corrected_forecast):
 
 
 def main():
-    log.info("Greenhouse controller starting (data collection mode)")
+    log.info("Greenhouse controller starting")
 
-    # Initialize devices
+    # Initialize sensor devices
     shelly_ht = ShellyHT()
     weather_station = WeatherStation()
     kasa_circ_fans = KasaSwitch(config.KASA_CIRC_FANS_IP)
     shelly_3em = Shelly3EM(config.SHELLY_3EM_IP)
+
+    # Initialize actuator devices (for controller commands)
+    exhaust_fan_relay = ShellyRelay(config.SHELLY_RELAY_IP, name="exhaust_fans")
+    shades_ctrl = ShadesController(
+        config.MOTION_GATEWAY_IP,
+        os.getenv("MOTION_GATEWAY_KEY", ""),
+        config.SHADES_EAST_MACS,
+        config.SHADES_WEST_MACS,
+    )
+    try:
+        shades_ctrl.connect()
+        log.info("Shades controller connected")
+    except Exception as e:
+        log.warning("Shades controller connect failed at startup (will retry on command): %s", e)
 
     # Start MQTT subscriber for Shelly H&T
     mqtt_client = setup_mqtt(shelly_ht)
@@ -182,7 +206,16 @@ def main():
             # 1. Read all sensors
             state, station_reading = read_all_sensors(shelly_ht, weather_station, kasa_circ_fans)
 
-            # 1b. Compare previous prediction against actual (model accuracy tracking)
+            # 1b. Restore last-cycle actuator state so the thermal model uses the
+            #     real shade/fan/HVAC state rather than GreenhouseState defaults.
+            last_act = logger.get_last_actuator_state()
+            if last_act:
+                state.shades_east = last_act["shades_east"]
+                state.shades_west = last_act["shades_west"]
+                state.fan_on      = last_act["fan_on"]
+                state.hvac_mode   = last_act["hvac_mode"]
+
+            # 1c. Compare previous prediction against actual (model accuracy tracking)
             if prev_prediction is not None and state.indoor_temp is not None:
                 logger.log_model_accuracy(
                     prev_prediction, state.indoor_temp, horizon_minutes=5
@@ -217,7 +250,24 @@ def main():
             else:
                 log.warning("No forecast available, skipping model prediction")
 
-            # 5. Log everything
+            # 4b. Run controller — predict with shades open, decide, execute
+            if corrected_forecast and state.indoor_temp is not None:
+                # Second model run: hypothetical open-shades state (used to check if
+                # it's safe to open shades without exceeding the cool setpoint).
+                state_open = copy.copy(state)
+                state_open.shades_east = "open"
+                state_open.shades_west = "open"
+                trajectory_open = thermal_model.predict(state_open, corrected_forecast)
+
+                heat_sp, cool_sp = controller.get_setpoints(config.DB_PATH)
+                overridden = controller.get_active_overrides(config.DB_PATH)
+                decisions = controller.decide(
+                    state, trajectory, trajectory_open,
+                    heat_sp, cool_sp, overridden, corrected_forecast,
+                )
+                controller.execute(decisions, state, shades_ctrl, exhaust_fan_relay)
+
+            # 5. Log everything (after controller so sensor_log reflects commanded state)
             logger.log_sensors(state)
             if raw_forecast and corrected_forecast:
                 logger.log_forecast(raw_forecast, corrected_forecast)

@@ -168,8 +168,8 @@ function applyState(s) {
 
   // HVAC setpoints
   if (s.settings) {
-    setText("heat-setpoint", s.settings.hvac_heat_setpoint + "°");
-    setText("cool-setpoint", s.settings.hvac_cool_setpoint + "°");
+    setText("heat-setpoint", s.settings.heat_setpoint + "°");
+    setText("cool-setpoint", s.settings.cool_setpoint + "°");
     window._settings = s.settings;
   }
 
@@ -330,7 +330,7 @@ function valueFromOffset(offset) {
 function openTape(which, anchorEl) {
   _tapeWhich = which;
   const settings = window._settings || {};
-  const key = which === "heat" ? "hvac_heat_setpoint" : "hvac_cool_setpoint";
+  const key = which === "heat" ? "heat_setpoint" : "cool_setpoint";
   const val = parseInt(settings[key] || (which === "heat" ? 60 : 80));
 
   // Build items
@@ -393,16 +393,16 @@ function tapeDragEnd(e) {
 
 async function commitTapeValue(val) {
   const which = _tapeWhich;
-  const key   = which === "heat" ? "hvac_heat_setpoint" : "hvac_cool_setpoint";
+  const key   = which === "heat" ? "heat_setpoint" : "cool_setpoint";
   const id    = which === "heat" ? "heat-setpoint"      : "cool-setpoint";
 
   // Enforce 10° minimum gap between heat and cool setpoints
   const s = window._settings || {};
   if (which === "heat") {
-    const cool = parseInt(s.hvac_cool_setpoint || 80);
+    const cool = parseInt(s.cool_setpoint || 80);
     val = Math.min(val, cool - 10);
   } else {
-    const heat = parseInt(s.hvac_heat_setpoint || 60);
+    const heat = parseInt(s.heat_setpoint || 60);
     val = Math.max(val, heat + 10);
   }
   val = Math.max(TAPE_MIN, Math.min(TAPE_MAX, val));

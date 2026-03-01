@@ -18,23 +18,26 @@ Rule-based control informed by predictions — not full MPC optimization.
 
 ## Implementation Status
 
-**Built (data collection phase):** Steps 1–4 operational. Sensor reads, forecast fetch, bias correction, thermal model, full Flask dashboard (4 pages), SQLite logging. Shade hardware wired to dashboard buttons. Both services running on Pi (`greenhouse.service`, `greenhouse-web.service`).
+**Built (fully operational):** All 6 control loop steps operational. Sensor reads, forecast fetch, bias correction, thermal model (including HVAC in energy balance), rule-based controller (`controller.py` — shades predictive, fans reactive, HVAC stub), full Flask dashboard (4 pages), SQLite logging. Both services running on Pi (`greenhouse.service`, `greenhouse-web.service`).
 
 **Thermal model calibration:** `fit_model.py` fits model parameters to observed sensor data via scipy. Parameters are interim estimates pending re-calibration after H&T sensor radiation shield is installed (direct sun on sensor biases indoor temp readings high). Flags: `--no-hvac`, `--filter-outliers`, `--outlier-threshold`.
 
-**Not yet built:** `controller.py` (steps 5–6), `alerts.py`, `devices/minisplit.py`. Flask-Login auth is planned but not implemented.
+**HVAC stub:** `controller.py` computes and logs HVAC heat/cool decisions but sends no device commands. Will activate when `devices/minisplit.py` is built.
+
+**Not yet built:** `alerts.py`, `devices/minisplit.py`. Flask-Login auth is planned but not implemented.
 
 ## File Structure
 
 ```
 /home/arnoharris/greenhouse/
-    main.py                # entry point, main loop, orchestration (data collection mode)
+    main.py                # entry point, 5-min control loop, orchestration
+    controller.py          # rule-based control logic: shades → fans → HVAC (stub)
     state.py               # GreenhouseState dataclass
-    thermal_model.py       # model equations, forward simulation
+    thermal_model.py       # model equations, forward simulation (includes HVAC energy balance)
     fit_model.py           # offline parameter calibration via scipy (run manually)
     resilience.py          # DeviceHealth tracker, retry_with_fallback wrapper
     forecast.py            # Open-Meteo API + bias correction
-    config.py              # setpoints, device IPs, tuning params
+    config.py              # setpoints, device IPs, tuning params, controller constants
     .env                   # API keys, passwords (NOT in git, loaded via python-dotenv)
     logger.py              # data logging to SQLite
     devices/
@@ -57,7 +60,6 @@ Rule-based control informed by predictions — not full MPC optimization.
             dashboard.js
 
 # Not yet implemented (planned):
-    controller.py          # control logic, decision rules
     alerts.py              # alert(message, severity), pluggable transports
     devices/minisplit.py   # ESP32/CN105 MQTT interface
 ```

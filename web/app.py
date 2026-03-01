@@ -80,8 +80,14 @@ def ensure_settings(conn):
         )
     """)
     now = datetime.now(timezone.utc).isoformat()
-    conn.execute("INSERT OR IGNORE INTO settings VALUES ('hvac_heat_setpoint', '60', ?)", (now,))
-    conn.execute("INSERT OR IGNORE INTO settings VALUES ('hvac_cool_setpoint', '80', ?)", (now,))
+    conn.execute("INSERT OR IGNORE INTO settings VALUES ('heat_setpoint', '60', ?)", (now,))
+    conn.execute("INSERT OR IGNORE INTO settings VALUES ('cool_setpoint', '80', ?)", (now,))
+    # Migrate old key names if present (one-time upgrade)
+    for old, new in [("hvac_heat_setpoint", "heat_setpoint"), ("hvac_cool_setpoint", "cool_setpoint")]:
+        row = conn.execute("SELECT value FROM settings WHERE key=?", (old,)).fetchone()
+        if row:
+            conn.execute("INSERT OR REPLACE INTO settings VALUES (?,?,?)", (new, row[0], now))
+            conn.execute("DELETE FROM settings WHERE key=?", (old,))
     conn.commit()
 
 
@@ -102,7 +108,7 @@ def load_settings(conn):
         rows = conn.execute("SELECT key, value FROM settings").fetchall()
         return {r["key"]: r["value"] for r in rows}
     except Exception:
-        return {"hvac_heat_setpoint": "60", "hvac_cool_setpoint": "80"}
+        return {"heat_setpoint": "60", "cool_setpoint": "80"}
 
 
 def controller_online(heartbeat_ts):
@@ -759,7 +765,7 @@ def api_shade_battery():
 @app.route("/api/settings", methods=["POST"])
 def api_set_settings():
     data = request.json or {}
-    allowed = {"hvac_heat_setpoint", "hvac_cool_setpoint"}
+    allowed = {"heat_setpoint", "cool_setpoint"}
     now = datetime.now(timezone.utc).isoformat()
     try:
         conn = get_db()

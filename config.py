@@ -122,6 +122,20 @@ MODEL_HORIZON_HOURS = 6      # how far ahead to predict
 DB_PATH = "greenhouse.db"
 
 # ---------------------------------------------------------------------------
+# HVAC
+# ---------------------------------------------------------------------------
+HVAC_CAPACITY_W = 5275        # 18,000 BTU/hr Mitsubishi minisplit
+
+# ---------------------------------------------------------------------------
+# Controller tuning
+# ---------------------------------------------------------------------------
+PREDICTION_HORIZON_MIN    = 120  # look-ahead for predictive decisions (2 hours)
+SHADE_OPEN_MARGIN_F       = 5.0  # open shades only if actual < cool_sp - 5°F
+FAN_STOP_MARGIN_F         = 3.0  # stop fans if actual < cool_sp - 3°F
+FAN_EFFECTIVENESS_DELTA_F = 5.0  # fans only if outdoor < indoor - 5°F
+SHADE_SUNSET_LEAD_MIN     = 60   # open shades this many minutes before sunset
+
+# ---------------------------------------------------------------------------
 # Alert thresholds (hours of continuous failure before alerting)
 # ---------------------------------------------------------------------------
 ALERT_THRESHOLDS = {
