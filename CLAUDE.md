@@ -18,17 +18,20 @@ Rule-based control informed by predictions — not full MPC optimization.
 
 ## Implementation Status
 
-**Built (data collection phase):** Steps 1–4 operational. Sensor reads, forecast fetch, bias correction, thermal model, full Flask dashboard (4 pages), SQLite logging.
+**Built (data collection phase):** Steps 1–4 operational. Sensor reads, forecast fetch, bias correction, thermal model, full Flask dashboard (4 pages), SQLite logging. Shade hardware wired to dashboard buttons. Both services running on Pi (`greenhouse.service`, `greenhouse-web.service`).
+
+**Thermal model calibration:** `fit_model.py` fits model parameters to observed sensor data via scipy. Parameters are interim estimates pending re-calibration after H&T sensor radiation shield is installed (direct sun on sensor biases indoor temp readings high). Flags: `--no-hvac`, `--filter-outliers`, `--outlier-threshold`.
 
 **Not yet built:** `controller.py` (steps 5–6), `alerts.py`, `devices/minisplit.py`. Flask-Login auth is planned but not implemented.
 
 ## File Structure
 
 ```
-/home/pi/greenhouse/
+/home/arnoharris/greenhouse/
     main.py                # entry point, main loop, orchestration (data collection mode)
     state.py               # GreenhouseState dataclass
     thermal_model.py       # model equations, forward simulation
+    fit_model.py           # offline parameter calibration via scipy (run manually)
     resilience.py          # DeviceHealth tracker, retry_with_fallback wrapper
     forecast.py            # Open-Meteo API + bias correction
     config.py              # setpoints, device IPs, tuning params
@@ -111,7 +114,10 @@ Python 3 · Flask · SQLite (WAL mode) · Chart.js · paho-mqtt · python-dotenv
 ## Development Workflow
 
 - Code on Windows, deploy to Pi via `git pull`
-- Service name: `greenhouse.service` (not `greenhouse-web.service`)
+- Pi user: `arnoharris`, project path: `/home/arnoharris/greenhouse`
+- Venv python: `/home/arnoharris/greenhouse/.venv/bin/python3`
+- Two systemd services: `greenhouse.service` (controller) and `greenhouse-web.service` (Flask dashboard)
+- Deploy: `git pull && sudo systemctl restart greenhouse.service greenhouse-web.service`
 - "commit" means commit AND push
 - Do not commit until explicitly asked
 - `.env` must be created manually on each machine (not in git)
