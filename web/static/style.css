@@ -16,9 +16,9 @@
   --heat:         #c05820;
   --cool:         #1e5c8a;
   --dot-on:       #3dd56d;
-  --dot-off:      #888888;
+  --dot-off:      #b0b0b0;
   --dot-auto:     #3dd56d;   /* green  — under automatic control */
-  --dot-manual:   #888888;   /* gray   — manual override active  */
+  --dot-manual:   #b0b0b0;   /* light gray — manual override active  */
   --accent:       #a8c020;
 
   --radius:       10px;
@@ -315,6 +315,7 @@ body {
 .btn-label { font-size: 20px; font-weight: 500; }
 .label-short { display: none; }
 .btn-sub   { font-size: 14px; color: rgba(255,255,255,0.6); }
+.btn-timer { font-size: 13px; color: rgba(255,255,255,0.7); min-height: 18px; }
 
 
 .hvac-row {
