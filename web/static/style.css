@@ -312,10 +312,11 @@ body {
   transition: background 0.2s;
 }
 
+.btn-label-row { display: flex; align-items: center; gap: 6px; }
 .btn-label { font-size: 20px; font-weight: 500; }
 .label-short { display: none; }
 .btn-sub   { font-size: 14px; color: rgba(255,255,255,0.6); }
-.btn-timer { font-size: 13px; color: rgba(255,255,255,0.7); min-height: 18px; }
+.btn-timer { font-size: 14px; color: rgba(255,255,255,0.65); }
 
 
 .hvac-row {
@@ -632,6 +633,7 @@ body {
   /* Abbreviated button labels on mobile */
   .label-full  { display: none; }
   .label-short { display: inline; }
+  #fan-timer   { display: none; }
 
   /* Controls panel — compact */
   .controls-panel { min-height: unset; }
