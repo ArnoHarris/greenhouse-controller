@@ -447,18 +447,24 @@ def api_solar_forecast():
         ).fetchall()
         conn.close()
 
-        forecast_pts = []
+        # Deduplicate forecast points by timestamp — keep the last-logged value
+        # for each hour (each 5-min cycle logs a full 24h forecast; latest is best).
+        forecast_map = {}
         for row in forecasts:
             try:
                 fc = json.loads(row["corrected_forecast"])
-                times = fc.get("hourly", {}).get("time", [])
-                solar = fc.get("hourly", {}).get("direct_radiation", []) or \
-                        fc.get("hourly", {}).get("shortwave_radiation", [])
+                # corrected_forecast is flat: top-level "time", "solar_irradiance_wm2"
+                times = fc.get("time", [])
+                solar = fc.get("solar_irradiance_wm2", [])
                 for i, t in enumerate(times):
                     if i < len(solar) and solar[i] is not None:
-                        forecast_pts.append({"timestamp": t, "solar_wm2": solar[i]})
+                        forecast_map[t] = solar[i]
             except Exception:
                 pass
+        forecast_pts = [
+            {"timestamp": t, "solar_wm2": v}
+            for t, v in sorted(forecast_map.items())
+        ]
 
         return jsonify({
             "actual": [dict(r) for r in actual],
