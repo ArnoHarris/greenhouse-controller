@@ -98,8 +98,10 @@ def apply_bias_correction(forecast, station_reading):
     if station_reading.get("outdoor_humidity") is not None and forecast["humidity"][idx] is not None:
         deltas["humidity"] = station_reading["outdoor_humidity"] - forecast["humidity"][idx]
 
-    if station_reading.get("solar_irradiance_wm2") is not None and forecast["solar_irradiance_wm2"][idx] is not None:
-        deltas["solar_irradiance_wm2"] = station_reading["solar_irradiance_wm2"] - forecast["solar_irradiance_wm2"][idx]
+    # Solar irradiance intentionally excluded from bias correction:
+    # the station reading varies minute-to-minute (cloud shadows) and is too
+    # noisy to use as a flat delta applied to all future hours.  The forecast's
+    # hourly solar is a smoother and more appropriate input to the thermal model.
 
     if station_reading.get("wind_speed_mph") is not None and forecast["wind_speed_mph"][idx] is not None:
         deltas["wind_speed_mph"] = station_reading["wind_speed_mph"] - forecast["wind_speed_mph"][idx]
