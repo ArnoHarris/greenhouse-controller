@@ -13,7 +13,7 @@ until devices/minisplit.py is implemented.
 import json
 import sqlite3
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import config
 
@@ -23,6 +23,41 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # DB helpers
 # ---------------------------------------------------------------------------
+
+def next_10pm_utc():
+    """Return the next 10pm local time as a UTC-aware datetime."""
+    local_now = datetime.now()
+    today_10pm = local_now.replace(hour=22, minute=0, second=0, microsecond=0)
+    if local_now >= today_10pm:
+        next_10pm = today_10pm + timedelta(days=1)
+    else:
+        next_10pm = today_10pm
+    return next_10pm.astimezone(timezone.utc)
+
+
+def create_override(actuator, command, db_path, source="physical"):
+    """Write a until-10pm override to the DB (e.g. for physical switch detection).
+
+    Cancels any existing override for the actuator before inserting the new one.
+    """
+    now = datetime.now(timezone.utc)
+    expires_at = next_10pm_utc()
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.execute(
+            "UPDATE overrides SET cancelled_at = ? WHERE actuator = ? AND cancelled_at IS NULL",
+            (now.isoformat(), actuator),
+        )
+        conn.execute(
+            "INSERT INTO overrides (actuator, command, created_at, expires_at, source) "
+            "VALUES (?,?,?,?,?)",
+            (actuator, json.dumps(command), now.isoformat(), expires_at.isoformat(), source),
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        log.error("[controller] Failed to create %s override for %s: %s", source, actuator, e)
+
 
 def get_setpoints(db_path):
     """Read (heat_sp, cool_sp) from the settings table. Returns (60.0, 80.0) on error."""

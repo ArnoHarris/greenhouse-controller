@@ -116,12 +116,13 @@ def read_all_sensors(shelly_ht, weather_station, kasa_circ_fans):
     circ, circ_fallback = retry_with_fallback(
         kasa_circ_fans.read, {"on": None}, "kasa_circ_fans"
     )
-    if circ and circ["on"] is not None:
+    kasa_circ_read_ok = circ and circ["on"] is not None
+    if kasa_circ_read_ok:
         state.circ_fans_on = circ["on"]
     if circ_fallback:
         log.warning("Using fallback for circulating fans")
 
-    return state, outdoor
+    return state, outdoor, kasa_circ_read_ok
 
 
 def get_corrected_forecast(station_reading):
@@ -204,7 +205,9 @@ def main():
 
         try:
             # 1. Read all sensors
-            state, station_reading = read_all_sensors(shelly_ht, weather_station, kasa_circ_fans)
+            state, station_reading, kasa_circ_read_ok = read_all_sensors(
+                shelly_ht, weather_station, kasa_circ_fans
+            )
 
             # 1b. Restore last-cycle actuator state so the thermal model uses the
             #     real shade/fan/HVAC state rather than GreenhouseState defaults.
@@ -214,6 +217,19 @@ def main():
                 state.shades_west = last_act["shades_west"]
                 state.fan_on      = last_act["fan_on"]
                 state.hvac_mode   = last_act["hvac_mode"]
+
+            # 1c. Detect physical circ fan switch change.
+            # If the controller had circ fans ON last cycle but Kasa now reports OFF,
+            # and there's no existing dashboard override, treat this as a manual action
+            # and create a DB override (same expiry as dashboard buttons: next 10pm).
+            # Skip if Kasa read failed — a stale False default must not create an override.
+            if (kasa_circ_read_ok
+                    and last_act and last_act.get("circ_fans_on")
+                    and not state.circ_fans_on):
+                active_ovr = controller.get_active_overrides(config.DB_PATH)
+                if "circ_fans" not in active_ovr:
+                    controller.create_override("circ_fans", {"on": False}, config.DB_PATH)
+                    log.info("[main] Physical circ fan switch OFF detected — override set until 10pm")
 
             # Override active manual commands on top — ensures sensor_log reflects
             # the commanded position even when the controller skips overridden actuators.
