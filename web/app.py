@@ -478,6 +478,15 @@ def api_solar_forecast():
 # API: actuator timeline (diagnostic)
 # ---------------------------------------------------------------------------
 
+_OVERRIDE_KEY = {
+    "East Shades": "shades_east",
+    "West Shades":  "shades_west",
+    "Exhaust Fans": "fan",
+    "Circ Fans":    "circ_fans",
+    "HVAC":         "hvac",
+}
+
+
 @app.route("/api/actuator_timeline")
 def api_actuator_timeline():
     range_param = request.args.get("range", "24h")
@@ -498,23 +507,56 @@ def api_actuator_timeline():
                ORDER BY s.rowid ASC""",
             (start, end, start, end),
         ).fetchall()
+        ov_rows = conn.execute(
+            """SELECT actuator, created_at, expires_at, cancelled_at
+               FROM overrides
+               WHERE datetime(created_at) < ?
+                 AND datetime(expires_at) > ?
+                 AND (cancelled_at IS NULL OR datetime(cancelled_at) > ?)""",
+            (end, start, start),
+        ).fetchall()
         conn.close()
-        return jsonify(_compute_actuator_timeline([dict(r) for r in rows]))
+        return jsonify(_compute_actuator_timeline(
+            [dict(r) for r in rows],
+            [dict(r) for r in ov_rows],
+        ))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-def _compute_actuator_timeline(rows):
-    """Convert time-series rows into ON/OFF periods per actuator."""
+def _compute_actuator_timeline(rows, override_rows=None):
+    """Convert time-series rows into ON/OFF periods per actuator.
+
+    Returns {name: {"auto": [...], "override": [...]}} where each list
+    contains {"start": ts, "end": ts} dicts.  Periods tagged "override"
+    were logged while a dashboard or physical override was active.
+    """
     checks = {
-        "East Shades":      lambda r: r.get("shades_east") == "closed",
-        "West Shades":      lambda r: r.get("shades_west") == "closed",
-        "Exhaust Fans":     lambda r: bool(r.get("fan_on")),
-        "Circ Fans":        lambda r: bool(r.get("circ_fans_on")),
-        "HVAC":             lambda r: bool(r.get("hvac_mode") and r.get("hvac_mode") != "off"),
+        "East Shades":  lambda r: r.get("shades_east") == "closed",
+        "West Shades":  lambda r: r.get("shades_west") == "closed",
+        "Exhaust Fans": lambda r: bool(r.get("fan_on")),
+        "Circ Fans":    lambda r: bool(r.get("circ_fans_on")),
+        "HVAC":         lambda r: bool(r.get("hvac_mode") and r.get("hvac_mode") != "off"),
     }
-    periods = {k: [] for k in checks}
-    current = {k: None for k in checks}
+
+    # Build override intervals per display name: list of (start_str, end_str)
+    ov_intervals = {k: [] for k in checks}
+    if override_rows:
+        rev = {v: k for k, v in _OVERRIDE_KEY.items()}
+        for ov in override_rows:
+            name = rev.get(ov["actuator"])
+            if name:
+                ov_end = ov["cancelled_at"] or ov["expires_at"]
+                ov_intervals[name].append((ov["created_at"], ov_end))
+
+    def _in_override(name, ts):
+        for ov_start, ov_end in ov_intervals[name]:
+            if ov_start <= ts < ov_end:
+                return True
+        return False
+
+    result  = {k: {"auto": [], "override": []} for k in checks}
+    current = {k: None for k in checks}   # (start_ts, is_override) or None
 
     for row in rows:
         ts = row["timestamp"]
@@ -523,19 +565,33 @@ def _compute_actuator_timeline(rows):
                 on = fn(row)
             except Exception:
                 on = False
-            if on and current[name] is None:
-                current[name] = ts
-            elif not on and current[name] is not None:
-                periods[name].append({"start": current[name], "end": ts})
+            ovr = _in_override(name, ts) if on else False
+            if on:
+                if current[name] is None:
+                    current[name] = (ts, ovr)
+                elif current[name][1] != ovr:
+                    seg_start, seg_ovr = current[name]
+                    result[name]["override" if seg_ovr else "auto"].append(
+                        {"start": seg_start, "end": ts}
+                    )
+                    current[name] = (ts, ovr)
+            elif current[name] is not None:
+                seg_start, seg_ovr = current[name]
+                result[name]["override" if seg_ovr else "auto"].append(
+                    {"start": seg_start, "end": ts}
+                )
                 current[name] = None
 
     if rows:
         last_ts = rows[-1]["timestamp"]
         for name in checks:
             if current[name] is not None:
-                periods[name].append({"start": current[name], "end": last_ts})
+                seg_start, seg_ovr = current[name]
+                result[name]["override" if seg_ovr else "auto"].append(
+                    {"start": seg_start, "end": last_ts}
+                )
 
-    return periods
+    return result
 
 
 # ---------------------------------------------------------------------------

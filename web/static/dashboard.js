@@ -659,6 +659,24 @@ const ACTUATOR_COLORS = {
   "HVAC": "#f0a030",
 };
 
+// Returns a CanvasPattern with diagonal stripes in the given hex color.
+// Used to distinguish override-controlled periods in the actuator timeline.
+function createHatchPattern(color) {
+  const size = 8;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = color + "22";        // ~13% opacity background
+  ctx.fillRect(0, 0, size, size);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, size); ctx.lineTo(size, 0);   // diagonal stripe
+  ctx.stroke();
+  return ctx.createPattern(canvas, "repeat");
+}
+
 function initDiagnosticPage() {
   fetchState();
   loadDiagCharts();
@@ -772,14 +790,27 @@ async function loadTimelineChart(range) {
     const res  = await fetch(`/api/actuator_timeline?range=${range}&offset=${_diagOffset}`);
     const data = await res.json();
 
-    const datasets = ACTUATOR_ORDER.map(name => ({
-      label:           name,
-      data:            (data[name] || []).map(p => ({ x: [new Date(p.start), new Date(p.end)], y: name })),
-      backgroundColor: ACTUATOR_COLORS[name] || "#888",
-      borderWidth:     0,
-      borderRadius:    2,
-      barThickness:    14,
-    }));
+    // Each actuator gets one dataset; override periods use a hatch fill.
+    // Merge auto + override periods into a single sorted array per actuator,
+    // tagging each point with its source so the scriptable backgroundColor
+    // can distinguish them.
+    const datasets = ACTUATOR_ORDER.map(name => {
+      const actData = data[name] || { auto: [], override: [] };
+      const allPeriods = [
+        ...(actData.auto     || []).map(p => ({ ...p, source: "auto"     })),
+        ...(actData.override || []).map(p => ({ ...p, source: "override" })),
+      ].sort((a, b) => (a.start < b.start ? -1 : 1));
+      const solidColor   = ACTUATOR_COLORS[name] || "#888";
+      const hatchPattern = createHatchPattern(solidColor);
+      return {
+        label:           name,
+        data:            allPeriods.map(p => ({ x: [new Date(p.start), new Date(p.end)], y: name, source: p.source })),
+        backgroundColor: ctx => (ctx.raw?.source === "override" ? hatchPattern : solidColor),
+        borderWidth:     0,
+        borderRadius:    2,
+        barThickness:    14,
+      };
+    });
 
     const ctx = document.getElementById("timeline-chart");
     if (!ctx) return;
